@@ -1,0 +1,8 @@
+{
+  "controller": "0x9b7fe1AfB27359D5Ea7B74e56947bBCf4839B8A8",
+  "facetAddresses": {
+    "aaveFacet": "0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496",
+    "cctpFacet": "0x34A1D3fff3958843C43aD80F30b94c510645C316",
+    "centrifugeFacet": "0x0000000000000000000000000000000000000000"
+  }
+}

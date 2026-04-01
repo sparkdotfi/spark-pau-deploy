@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.34;
 
-import { IControllerFull } from "../src/interfaces/IControllerFull.sol";
+import { IControllerFull } from "./interfaces/IControllerFull.sol";
 
 import { IAaveFacet }          from "../lib/diamond-pau/src/facets/aave/IAaveFacet.sol";
 import { ICCTPFacet }          from "../lib/diamond-pau/src/facets/cctp/ICCTPFacet.sol";
@@ -60,7 +60,7 @@ library PAUWire {
     }
 
     function wireFacets(address controller, FacetAddresses memory facets) internal {
-        IControllerFull c = IControllerFull(controller);
+        IControllerFull c = IControllerFull(payable(controller));
 
         if (facets.aaveFacet          != address(0)) _wireAave(c, facets.aaveFacet);
         if (facets.cctpFacet          != address(0)) _wireCCTP(c, facets.cctpFacet);
@@ -93,7 +93,7 @@ library PAUWire {
     /*** Internal wire functions                                                                ***/
     /**********************************************************************************************/
 
-    function _wireAave(IController controller, address facet) internal {
+    function _wireAave(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.setAaveMaxSlippage.selector,  facet, IAaveFacet.setMaxSlippage.selector);
         controller.setDispatch(IControllerFull.getAaveMaxSlippage.selector,  facet, IAaveFacet.getMaxSlippage.selector);
         controller.setDispatch(IControllerFull.depositAave.selector,         facet, IAaveFacet.deposit.selector);
@@ -102,7 +102,7 @@ library PAUWire {
         controller.setDispatch(IControllerFull.LIMIT_AAVE_WITHDRAW.selector, facet, IAaveFacet.LIMIT_WITHDRAW.selector);
     }
 
-    function _wireCCTP(IController controller, address facet) internal {
+    function _wireCCTP(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.setCCTPMaxFeeCap.selector,          facet, ICCTPFacet.setMaxFeeCap.selector);
         controller.setDispatch(IControllerFull.setCCTPMintRecipient.selector,      facet, ICCTPFacet.setMintRecipient.selector);
         controller.setDispatch(IControllerFull.getCCTPMaxFeeCap.selector,          facet, ICCTPFacet.maxFeeCap.selector);
@@ -111,10 +111,9 @@ library PAUWire {
         controller.setDispatch(IControllerFull.transferUSDCToCCTPWithFee.selector, facet, ICCTPFacet.transferWithFee.selector);
         controller.setDispatch(IControllerFull.LIMIT_USDC_TO_CCTP.selector,        facet, ICCTPFacet.LIMIT_TO_CCTP.selector);
         controller.setDispatch(IControllerFull.LIMIT_USDC_TO_DOMAIN.selector,      facet, ICCTPFacet.LIMIT_TO_DOMAIN.selector);
-        // TODO:  DESTINATION_CALLER, MAX_FEE, MAX_FINALITY_THRESHOLD, cctp, usdc
     }
 
-    function _wireCentrifuge(IController controller, address facet) internal {
+    function _wireCentrifuge(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.setCentrifugeRecipient.selector,              facet, ICentrifugeFacet.setRecipient.selector);
         controller.setDispatch(IControllerFull.cancelCentrifugeDepositRequest.selector,      facet, ICentrifugeFacet.cancelDepositRequest.selector);
         controller.setDispatch(IControllerFull.claimCentrifugeCancelDepositRequest.selector, facet, ICentrifugeFacet.claimCancelDepositRequest.selector);
@@ -123,11 +122,9 @@ library PAUWire {
         controller.setDispatch(IControllerFull.transferSharesCentrifuge.selector,            facet, ICentrifugeFacet.transferShares.selector);
         controller.setDispatch(IControllerFull.LIMIT_CENTRIFUGE_TRANSFER.selector,           facet, ICentrifugeFacet.LIMIT_TRANSFER.selector);
         controller.setDispatch(IControllerFull.getCentrifugeRecipient.selector,              facet, ICentrifugeFacet.getRecipient.selector);
-        // TODO: LIMIT_DEPOSIT, LIMIT_REDEEM, REQUEST_ID 
-
     }
 
-    function _wireCurve(IController controller, address facet) internal {
+    function _wireCurve(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.setCurveMaxSlippage.selector,  facet, ICurveFacet.setMaxSlippage.selector);
         controller.setDispatch(IControllerFull.getCurveMaxSlippage.selector,  facet, ICurveFacet.getMaxSlippage.selector);
         controller.setDispatch(IControllerFull.swapCurve.selector,            facet, ICurveFacet.swap.selector);
@@ -138,13 +135,12 @@ library PAUWire {
         controller.setDispatch(IControllerFull.LIMIT_CURVE_WITHDRAW.selector, facet, ICurveFacet.LIMIT_WITHDRAW.selector);
     }
 
-    function _wireDAIUSDS(IController controller, address facet) internal {
+    function _wireDAIUSDS(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.swapUSDSToDAI.selector, facet, IDAIUSDSFacet.swapUSDSToDAI.selector);
         controller.setDispatch(IControllerFull.swapDAIToUSDS.selector, facet, IDAIUSDSFacet.swapDAIToUSDS.selector);
-        // TODO: dai, daiUSDS, usds
     }
 
-    function _wireERC4626(IController controller, address facet) internal {
+    function _wireERC4626(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.setMaxExchangeRate.selector,      facet, IERC4626Facet.setMaxExchangeRate.selector);
         controller.setDispatch(IControllerFull.maxExchangeRates.selector,        facet, IERC4626Facet.getMaxExchangeRate.selector);
         controller.setDispatch(IControllerFull.depositERC4626.selector,          facet, IERC4626Facet.deposit.selector);
@@ -153,10 +149,9 @@ library PAUWire {
         controller.setDispatch(IControllerFull.LIMIT_4626_DEPOSIT.selector,      facet, IERC4626Facet.LIMIT_DEPOSIT.selector);
         controller.setDispatch(IControllerFull.LIMIT_4626_WITHDRAW.selector,     facet, IERC4626Facet.LIMIT_WITHDRAW.selector);
         controller.setDispatch(IControllerFull.EXCHANGE_RATE_PRECISION.selector, facet, IERC4626Facet.EXCHANGE_RATE_PRECISION.selector);
-        // TODO: ERC4626_EXCHANGE_RATE_PRECISION -> EXCHANGE_RATE_PRECISION ??
     }
 
-    function _wireERC7540(IController controller, address facet) internal {
+    function _wireERC7540(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.requestDepositERC7540.selector, facet, IERC7540Facet.requestDeposit.selector);
         controller.setDispatch(IControllerFull.claimDepositERC7540.selector,   facet, IERC7540Facet.claimDeposit.selector);
         controller.setDispatch(IControllerFull.requestRedeemERC7540.selector,  facet, IERC7540Facet.requestRedeem.selector);
@@ -165,32 +160,31 @@ library PAUWire {
         controller.setDispatch(IControllerFull.LIMIT_7540_REDEEM.selector,     facet, IERC7540Facet.LIMIT_REDEEM.selector);
     }
 
-    function _wireFarm(IController controller, address facet) internal {
+    function _wireFarm(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.depositToFarm.selector,       facet, IFarmFacet.deposit.selector);
         controller.setDispatch(IControllerFull.withdrawFromFarm.selector,    facet, IFarmFacet.withdraw.selector);
         controller.setDispatch(IControllerFull.LIMIT_FARM_DEPOSIT.selector,  facet, IFarmFacet.LIMIT_DEPOSIT.selector);
         controller.setDispatch(IControllerFull.LIMIT_FARM_WITHDRAW.selector, facet, IFarmFacet.LIMIT_WITHDRAW.selector);
     }
 
-    function _wireLayerZero(IController controller, address facet) internal {
+    function _wireLayerZero(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.setLayerZeroRecipient.selector,      facet, ILayerZeroFacet.setRecipient.selector);
         controller.setDispatch(IControllerFull.transferTokenLayerZero.selector,     facet, ILayerZeroFacet.transfer.selector);
         controller.setDispatch(IControllerFull.LIMIT_LAYERZERO_TRANSFER.selector,   facet, ILayerZeroFacet.LIMIT_TRANSFER.selector);
         controller.setDispatch(IControllerFull.getLayerZeroRecipients.selector,     facet, ILayerZeroFacet.getRecipient.selector);
     }
 
-    function _wireMaple(IController controller, address facet) internal {
+    function _wireMaple(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.requestMapleRedemption.selector, facet, IMapleFacet.requestRedemption.selector);
         controller.setDispatch(IControllerFull.cancelMapleRedemption.selector,  facet, IMapleFacet.cancelRedemption.selector);
         controller.setDispatch(IControllerFull.LIMIT_MAPLE_REDEEM.selector,     facet, IMapleFacet.LIMIT_REDEEM.selector);
     }
 
-    function _wireMerkl(IController controller, address facet) internal {
+    function _wireMerkl(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.toggleOperatorMerkl.selector, facet, IMerklFacet.toggleOperator.selector);
-        // TODO: distributor
     }
 
-    function _wireOTC(IController controller, address facet) internal {
+    function _wireOTC(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.setOTCMaxSlippage.selector,       facet, IOTCFacet.setMaxSlippage.selector);
         controller.setDispatch(IControllerFull.setOTCBuffer.selector,            facet, IOTCFacet.setBuffer.selector);
         controller.setDispatch(IControllerFull.setOTCRechargeRate.selector,      facet, IOTCFacet.setRechargeRate.selector);
@@ -202,48 +196,43 @@ library PAUWire {
         controller.setDispatch(IControllerFull.isOtcSwapReady.selector,          facet, IOTCFacet.isSwapReady.selector);
         controller.setDispatch(IControllerFull.otcs.selector,                    facet, IOTCFacet.getState.selector);
         controller.setDispatch(IControllerFull.otcWhitelistedAssets.selector,    facet, IOTCFacet.getIsWhitelisted.selector);
-        // TODO: getBuffer, getMaxSlippage, getRechargeRate
     }
 
-    function _wirePendle(IController controller, address facet) internal {
+    function _wirePendle(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.redeemPendlePT.selector,         facet, IPendleFacet.redeem.selector);
         controller.setDispatch(IControllerFull.LIMIT_PENDLE_PT_REDEEM.selector, facet, IPendleFacet.LIMIT_REDEEM.selector);
-        // TODO: router
     }
 
-    function _wirePSM(IController controller, address facet) internal {
+    function _wirePSM(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.swapUSDSToUSDC.selector,          facet, IPSMFacet.swapUSDSToUSDC.selector);
         controller.setDispatch(IControllerFull.swapUSDCToUSDS.selector,          facet, IPSMFacet.swapUSDCToUSDS.selector);
         controller.setDispatch(IControllerFull.psmTo18ConversionFactor.selector, facet, IPSMFacet.to18ConversionFactor.selector);
         controller.setDispatch(IControllerFull.LIMIT_USDS_TO_USDC.selector,      facet, IPSMFacet.LIMIT_USDS_TO_USDC.selector);
-        // TODO: dai, daiUSDS, psm, usdc, usds
     }
 
-    function _wirePSM3(IController controller, address facet) internal {
+    function _wirePSM3(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.depositPSM.selector,         facet, IPSM3Facet.deposit.selector);
         controller.setDispatch(IControllerFull.withdrawPSM.selector,        facet, IPSM3Facet.withdraw.selector);
         controller.setDispatch(IControllerFull.LIMIT_PSM_DEPOSIT.selector,  facet, IPSM3Facet.LIMIT_DEPOSIT.selector);
         controller.setDispatch(IControllerFull.LIMIT_PSM_WITHDRAW.selector, facet, IPSM3Facet.LIMIT_WITHDRAW.selector);
-        // TODO: psm
     }
 
-    function _wireSparkVault(IController controller, address facet) internal {
+    function _wireSparkVault(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.takeFromSparkVault.selector,     facet, ISparkVaultFacet.take.selector);
         controller.setDispatch(IControllerFull.LIMIT_SPARK_VAULT_TAKE.selector, facet, ISparkVaultFacet.LIMIT_TAKE.selector);
     }
 
-    function _wireSuperstate(IController controller, address facet) internal {
+    function _wireSuperstate(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.subscribeSuperstate.selector,        facet, ISuperstateFacet.subscribe.selector);
         controller.setDispatch(IControllerFull.LIMIT_SUPERSTATE_SUBSCRIBE.selector, facet, ISuperstateFacet.LIMIT_SUBSCRIBE.selector);
-        // TODO: usdc, ustb
     }
 
-    function _wireTransferAsset(IController controller, address facet) internal {
+    function _wireTransferAsset(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.transferAsset.selector,        facet, ITransferAssetFacet.transfer.selector);
         controller.setDispatch(IControllerFull.LIMIT_ASSET_TRANSFER.selector, facet, ITransferAssetFacet.LIMIT_TRANSFER.selector);
     }
 
-    function _wireUniswapV3(IController controller, address facet) internal {
+    function _wireUniswapV3(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.addLiquidityUniswapV3.selector,                  facet, IUniswapV3Facet.addLiquidity.selector);
         controller.setDispatch(IControllerFull.removeLiquidityUniswapV3.selector,               facet, IUniswapV3Facet.removeLiquidity.selector);
         controller.setDispatch(IControllerFull.swapUniswapV3.selector,                          facet, IUniswapV3Facet.swap.selector);
@@ -259,10 +248,9 @@ library PAUWire {
         controller.setDispatch(IControllerFull.getUniswapV3PoolMaxTickDelta.selector,           facet, IUniswapV3Facet.getMaxTickDelta.selector);
         controller.setDispatch(IControllerFull.getUniswapV3AddLiquidityTickBounds.selector,     facet, IUniswapV3Facet.getLiquidityTickBounds.selector);
         controller.setDispatch(IControllerFull.getUniswapV3TWAPSecondsAgo.selector,             facet, IUniswapV3Facet.getTWAPSecondsAgo.selector);
-        // TODO: MAX_TICK_DELTA, MIN_TICK, MAX_TICK, positionManager, router
     }
 
-    function _wireUniswapV4(IController controller, address facet) internal {
+    function _wireUniswapV4(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.decreaseLiquidityUniswapV4.selector, facet, IUniswapV4Facet.decreasePosition.selector);
         controller.setDispatch(IControllerFull.increaseLiquidityUniswapV4.selector, facet, IUniswapV4Facet.increasePosition.selector);
         controller.setDispatch(IControllerFull.mintPositionUniswapV4.selector,      facet, IUniswapV4Facet.mintPosition.selector);
@@ -274,10 +262,9 @@ library PAUWire {
         controller.setDispatch(IControllerFull.LIMIT_UNISWAP_V4_SWAP.selector,      facet, IUniswapV4Facet.LIMIT_SWAP.selector);
         controller.setDispatch(IControllerFull.uniswapV4MaxSlippages.selector,      facet, IUniswapV4Facet.getMaxSlippage.selector);
         controller.setDispatch(IControllerFull.uniswapV4TickLimits.selector,        facet, IUniswapV4Facet.getTickLimits.selector);
-        // TODO: permit2, positionManager, router
     }
 
-    function _wireUSDE(IController controller, address facet) internal {
+    function _wireUSDE(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.cooldownAssetsSUSDe.selector,    facet, IUSDEFacet.cooldownAssets.selector);
         controller.setDispatch(IControllerFull.cooldownSharesSUSDe.selector,    facet, IUSDEFacet.cooldownShares.selector);
         controller.setDispatch(IControllerFull.prepareUSDeMint.selector,        facet, IUSDEFacet.prepareMint.selector);
@@ -288,37 +275,32 @@ library PAUWire {
         controller.setDispatch(IControllerFull.LIMIT_USDE_BURN.selector,        facet, IUSDEFacet.LIMIT_USDE_BURN.selector);
         controller.setDispatch(IControllerFull.LIMIT_USDE_MINT.selector,        facet, IUSDEFacet.LIMIT_USDE_MINT.selector);
         controller.setDispatch(IControllerFull.LIMIT_SUSDE_COOLDOWN.selector,   facet, IUSDEFacet.LIMIT_SUSDE_COOLDOWN.selector);
-        // TODO: ethenaMinter, susde, usdc, usde
     }
 
-    function _wireUSDS(IController controller, address facet) internal {
+    function _wireUSDS(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.mintUSDS.selector,        facet, IUSDSFacet.mint.selector);
         controller.setDispatch(IControllerFull.burnUSDS.selector,        facet, IUSDSFacet.burn.selector);
         controller.setDispatch(IControllerFull.LIMIT_USDS_MINT.selector, facet, IUSDSFacet.LIMIT_MINT.selector);
-        // TODO: vault, usds
     }
 
-    function _wireWEETH(IController controller, address facet) internal {
+    function _wireWEETH(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.depositToWeETH.selector,               facet, IWEETHFacet.deposit.selector);
         controller.setDispatch(IControllerFull.requestWithdrawFromWeETH.selector,     facet, IWEETHFacet.requestWithdraw.selector);
         controller.setDispatch(IControllerFull.claimWithdrawalFromWeETH.selector,     facet, IWEETHFacet.claimWithdrawal.selector);
         controller.setDispatch(IControllerFull.LIMIT_WEETH_DEPOSIT.selector,          facet, IWEETHFacet.LIMIT_DEPOSIT.selector);
         controller.setDispatch(IControllerFull.LIMIT_WEETH_REQUEST_WITHDRAW.selector, facet, IWEETHFacet.LIMIT_REQUEST_WITHDRAW.selector);
-        // TODO: weth, weeth
     }
 
-    function _wireWrapProxyETH(IController controller, address facet) internal {
+    function _wireWrapProxyETH(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.wrapAllProxyETH.selector, facet, IWrapProxyETHFacet.wrapAll.selector);
-        // TODO: weth
     }
 
-    function _wireWSTETH(IController controller, address facet) internal {
+    function _wireWSTETH(IControllerFull controller, address facet) internal {
         controller.setDispatch(IControllerFull.depositToWstETH.selector,               facet, IWSTETHFacet.deposit.selector);
         controller.setDispatch(IControllerFull.requestWithdrawFromWstETH.selector,     facet, IWSTETHFacet.requestWithdraw.selector);
         controller.setDispatch(IControllerFull.claimWithdrawalFromWstETH.selector,     facet, IWSTETHFacet.claimWithdrawal.selector);
         controller.setDispatch(IControllerFull.LIMIT_WSTETH_DEPOSIT.selector,          facet, IWSTETHFacet.LIMIT_DEPOSIT.selector);
         controller.setDispatch(IControllerFull.LIMIT_WSTETH_REQUEST_WITHDRAW.selector, facet, IWSTETHFacet.LIMIT_REQUEST_WITHDRAW.selector);
-        // TODO: weth, withdrawQueue, wsteth
     }
 
 }
