@@ -27,7 +27,7 @@ contract WireFacets is Script {
 
         PAUWire.FacetAddresses memory facets = _readFacetAddresses(config);
 
-        console.log("Wiring PAU facets for %s %s...", env, chain);
+        console.log("Wiring PAU facets...\n  Chain: %s\n  Env: %s", chain, env);
 
         vm.startBroadcast();
 
