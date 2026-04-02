@@ -1,4 +1,6 @@
 {
+  "_info": "Spark Mainnet Staging PAU facet addresses. Wires only non-zero addresses to the PAU controller.",
+
   "controller": "0x9b7fe1AfB27359D5Ea7B74e56947bBCf4839B8A8",
   "facetAddresses": {
     "aaveFacet": "0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496",

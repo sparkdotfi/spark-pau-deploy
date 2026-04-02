@@ -1,5 +1,5 @@
 {
-  "_info": "Spark Base Staging PAU facet addresses. Wires only non-zero addresses to the PAU controller.",
+  "_info": "Spark ArbitrumOne Production PAU facet addresses. Wires only non-zero addresses to the PAU controller.",
 
   "controller": "0x9b7fe1AfB27359D5Ea7B74e56947bBCf4839B8A8",
   "facetAddresses": {
@@ -20,7 +20,7 @@
     "psm3Facet": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     "sparkVaultFacet": "0x0000000000000000000000000000000000000000",
     "superstateFacet": "0x0000000000000000000000000000000000000000",
-    "transferAssetFacet": "0xd21060559c9beb54fC07aFd6151aDf6cFCDDCAeB",
+    "transferAssetFacet": "0x0000000000000000000000000000000000000000",
     "uniswapV3Facet": "0x0000000000000000000000000000000000000000",
     "uniswapV4Facet": "0x0000000000000000000000000000000000000000",
     "usdeFacet": "0x0000000000000000000000000000000000000000",

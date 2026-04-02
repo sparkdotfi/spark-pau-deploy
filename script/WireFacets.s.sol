@@ -5,8 +5,6 @@ import { Script, stdJson, console } from "../lib/forge-std/src/Script.sol";
 
 import { ScriptTools } from "../lib/dss-test/src/ScriptTools.sol";
 
-import { IControllerFull } from "../src/interfaces/IControllerFull.sol";
-
 import { PAUWire } from "../src/PAUWire.sol";
 
 contract WireFacets is Script {
@@ -15,27 +13,27 @@ contract WireFacets is Script {
     using ScriptTools for string;
 
     function run() external {
-        string memory chain    = vm.envOr("CHAIN", string("mainnet"));
+        string memory chain = vm.envOr("CHAIN", string("mainnet"));
 
         vm.createSelectFork(getChain(chain).rpcUrl);
 
-        vm.setEnv("FOUNDRY_ROOT_CHAINID",             vm.toString(block.chainid));
-        vm.setEnv("FOUNDRY_EXPORTS_OVERWRITE_LATEST", "true");
+        vm.setEnv("FOUNDRY_ROOT_CHAINID", vm.toString(block.chainid));
 
-        string memory fileSlug = string(abi.encodePacked("facets-", chain, "-", vm.envString("ENV")));
+        string memory env      = vm.envString("ENV");
+        string memory fileSlug = string(abi.encodePacked("facets-", chain, "-", env));
         string memory config   = ScriptTools.loadConfig(fileSlug);
 
-        IControllerFull controller = IControllerFull(payable(config.readAddress(".controller")));
+        address controller = config.readAddress(".controller");
 
         PAUWire.FacetAddresses memory facets = _readFacetAddresses(config);
 
-        console.log("Deploying PAU system for %s...", chain);
+        console.log("Wiring PAU facets for %s %s...", env, chain);
 
         vm.startBroadcast();
 
         // Wire facets
 
-        PAUWire.wireFacets(address(controller), facets);
+        PAUWire.wireFacets(controller, facets);
 
         vm.stopBroadcast();
     }
