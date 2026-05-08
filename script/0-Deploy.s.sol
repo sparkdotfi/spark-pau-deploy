@@ -26,6 +26,8 @@ contract DeployAccessControls is Script {
         string memory fileSlug = string(abi.encodePacked("config-", chain, "-", env));
         string memory config   = ScriptTools.loadConfig(fileSlug);
 
+        require(block.chainid == config.readUint(".chainId"), "Invalid chain ID");
+
         vm.startBroadcast();
 
         /// @dev Set admin as deployer initially to grant full control 
@@ -58,6 +60,8 @@ contract DeployController is Script {
         string memory env      = vm.envString("ENV");
         string memory fileSlug = string(abi.encodePacked("config-", chain, "-", env));
         string memory config   = ScriptTools.loadConfig(fileSlug);
+
+        require(block.chainid == config.readUint(".chainId"), "Invalid chain ID");
 
         vm.startBroadcast();
 

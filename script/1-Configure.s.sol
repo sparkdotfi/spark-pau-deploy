@@ -3,9 +3,24 @@ pragma solidity ^0.8.34;
 
 import { Script, stdJson } from "../lib/forge-std/src/Script.sol";
 
+import { Ethereum }  from "../lib/spark-address-registry/src/Ethereum.sol";
+import { SparkLend } from "../lib/spark-address-registry/src/SparkLend.sol";
+
+import { IMainnetControllerFull } from "../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
+
 import { ScriptTools } from "../lib/dss-test/src/ScriptTools.sol";
 
 import { console2 } from "../lib/forge-std/src/console2.sol";
+
+interface IOldMainnetControllerLike {
+
+    function uniswapV4TickLimits(bytes32 poolId) external view returns (int24 tickLower, int24 tickUpper, uint24 maxTickSpacing);
+
+    function maxSlippages(address pool) external view returns (uint256 maxSlippage);
+
+    function maxExchangeRates(address vault) external view returns (uint256 maxExchangeRate);
+
+}
 
 interface IController {
 
@@ -46,6 +61,11 @@ contract ConfigureController is Script {
         bytes32 wstethFacet;
     }
 
+    bytes32 internal constant PYUSD_USDS_POOL_ID = 0xe63e32b2ae40601662f760d6bf5d771057324fbd97784fe1d3717069f7b75d45;
+    bytes32 internal constant USDT_USDS_POOL_ID  = 0x3b1b1f2e775a6db1664f8e7d59ad568605ea2406312c11aef03146c0cf89d5b9;
+
+    address controller;
+
     function run() external {
         string memory chain = vm.envOr("CHAIN", string("mainnet"));
 
@@ -57,20 +77,103 @@ contract ConfigureController is Script {
         string memory fileSlug = string(abi.encodePacked("config-", chain, "-", env));
         string memory config   = ScriptTools.loadConfig(fileSlug);
 
-        address controller = config.readAddress(".controller");
+        require(block.chainid == config.readUint(".chainId"), "Invalid chain ID");
+
+        controller = config.readAddress(".controller");
 
         IntegrationIds memory allIntegrationIds = _readIntegrationIds(config);
 
         vm.startBroadcast();
 
-        _updateIntegrations(controller, allIntegrationIds, config);
+        _updateIntegrations(allIntegrationIds, config);
 
         console2.log("Integrations updated");
+
+        _migrateMaxExchangeRate(Ethereum.MORPHO_VAULT_USDC_BC, 10);
+        _migrateMaxExchangeRate(Ethereum.MORPHO_VAULT_DAI_1,   10);
+        _migrateMaxExchangeRate(Ethereum.MORPHO_VAULT_USDS,    10);
+        _migrateMaxExchangeRate(Ethereum.MORPHO_VAULT_V2_USDT, 1_000_000);
+        _migrateMaxExchangeRate(Ethereum.SUSDS,                10);
+        _migrateMaxExchangeRate(Ethereum.FLUID_SUSDS,          10);
+        _migrateMaxExchangeRate(Ethereum.SUSDE,                10);
+        _migrateMaxExchangeRate(Ethereum.SYRUP_USDC,           10);
+        _migrateMaxExchangeRate(Ethereum.SYRUP_USDT,           10);
+        _migrateMaxExchangeRate(Ethereum.ARKIS_VAULT,          10);
+
+        console2.log("Max exchange rates updated");
+
+        _migrateCurveMaxSlippage(Ethereum.CURVE_SUSDSUSDT);
+        _migrateCurveMaxSlippage(Ethereum.CURVE_PYUSDUSDC);
+        _migrateCurveMaxSlippage(Ethereum.CURVE_USDCUSDT);
+        _migrateCurveMaxSlippage(Ethereum.CURVE_PYUSDUSDS);
+        _migrateCurveMaxSlippage(Ethereum.CURVE_WEETHWETHNG);
+
+        console2.log("Curve max slippage updated");
+
+        _migrateAaveMaxSlippage(Ethereum.ATOKEN_CORE_USDC);
+        _migrateAaveMaxSlippage(Ethereum.ATOKEN_CORE_USDE);
+        _migrateAaveMaxSlippage(Ethereum.ATOKEN_CORE_USDS);
+        _migrateAaveMaxSlippage(Ethereum.ATOKEN_CORE_USDT);
+        _migrateAaveMaxSlippage(Ethereum.ATOKEN_PRIME_USDS);
+
+        _migrateAaveMaxSlippage(SparkLend.DAI_SPTOKEN);
+        _migrateAaveMaxSlippage(SparkLend.USDC_SPTOKEN);
+        _migrateAaveMaxSlippage(SparkLend.USDS_SPTOKEN);
+        _migrateAaveMaxSlippage(SparkLend.USDT_SPTOKEN);
+        _migrateAaveMaxSlippage(SparkLend.PYUSD_SPTOKEN);
+        _migrateAaveMaxSlippage(SparkLend.WETH_SPTOKEN);
+
+        console2.log("Aave max slippage updated");
+
+        _migrateUniswapV4MaxSlippage(PYUSD_USDS_POOL_ID);
+        _migrateUniswapV4MaxSlippage(USDT_USDS_POOL_ID);
+
+        console2.log("UniswapV4 max slippage updated");
+
+        _migrateUniswapV4TickLimits(PYUSD_USDS_POOL_ID);
+        _migrateUniswapV4TickLimits(USDT_USDS_POOL_ID);
+
+        console2.log("UniswapV4 tick limits updated");
 
         vm.stopBroadcast();
     }
 
-    function _updateIntegrations(address controller, IntegrationIds memory allIntegrationIds, string memory config) internal {
+    function _migrateMaxExchangeRate(address vault, uint256 rate) internal {
+        uint256 oldMaxExchangeRate = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxExchangeRates(vault);
+
+        IMainnetControllerFull(controller).setMaxExchangeRate(vault, 1, rate);
+
+        require(
+            IMainnetControllerFull(controller).maxExchangeRates(vault) == oldMaxExchangeRate,
+            "Max exchange rate mismatch"
+        );
+    }
+
+    function _migrateCurveMaxSlippage(address pool) internal {
+        uint256 oldMaxSlippage = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxSlippages(pool);
+
+        IMainnetControllerFull(controller).setCurveMaxSlippage(pool, oldMaxSlippage);
+    }
+
+    function _migrateAaveMaxSlippage(address aToken) internal {
+        uint256 oldMaxSlippage = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxSlippages(aToken);
+
+        IMainnetControllerFull(controller).setAaveMaxSlippage(aToken, oldMaxSlippage);
+    }
+
+    function _migrateUniswapV4MaxSlippage(bytes32 poolId) internal {
+        uint256 oldMaxSlippage = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxSlippages(address(uint160(uint256(poolId))));
+
+        IMainnetControllerFull(controller).setUniswapV4MaxSlippage(poolId, oldMaxSlippage);
+    }
+
+    function _migrateUniswapV4TickLimits(bytes32 poolId) internal {
+        ( int24 tickLower, int24 tickUpper, uint24 maxTickSpacing ) = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).uniswapV4TickLimits(poolId);
+
+        IMainnetControllerFull(controller).setUniswapV4TickLimits(poolId, tickLower, tickUpper, maxTickSpacing);
+    }
+
+    function _updateIntegrations(IntegrationIds memory allIntegrationIds, string memory config) internal {
         bytes32[] memory integrationIds = new bytes32[](config.readUint(".facets.length"));
 
         uint256 i = 0;

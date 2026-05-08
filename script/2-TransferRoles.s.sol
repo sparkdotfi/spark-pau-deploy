@@ -38,6 +38,8 @@ contract ConfigureController is Script {
         string memory fileSlug = string(abi.encodePacked("config-", chain, "-", env));
         string memory config   = ScriptTools.loadConfig(fileSlug);
 
+        require(block.chainid == config.readUint(".chainId"), "Invalid chain ID");
+
         IAccessControls accessControls = IAccessControls(config.readAddress(".accessControls"));
 
         address admin = config.readAddress(".admin");
