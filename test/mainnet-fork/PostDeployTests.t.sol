@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.34;
 
-import { VmSafe } from "../lib/forge-std/src/Vm.sol";
+import { VmSafe } from "../../lib/forge-std/src/Vm.sol";
 
-import { IAccessControl }                 from "../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
-import { IEnumerableIntegrations as IEI } from "../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
-import { IMainnetControllerFull }         from "../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
+import { IAccessControl }                 from "../../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
+import { IEnumerableIntegrations as IEI } from "../../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
+import { IMainnetControllerFull }         from "../../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
 
-import { AccessControls } from "../lib/diamond-pau/src/AccessControls.sol";
-import { Beacon }         from "../lib/diamond-pau/src/Beacon.sol";
+import { AccessControls } from "../../lib/diamond-pau/src/AccessControls.sol";
+import { Beacon }         from "../../lib/diamond-pau/src/Beacon.sol";
 
-import { Ethereum } from "../lib/spark-address-registry/src/Ethereum.sol";
+import { Ethereum }  from "../../lib/spark-address-registry/src/Ethereum.sol";
+import { SparkLend } from "../../lib/spark-address-registry/src/SparkLend.sol";
 
-import { PostDeployTestBase } from "./PostDeployTestBase.t.sol";
+import { PostDeployTestBase } from "../PostDeployTestBase.t.sol";
 
 contract PostDeployTests is PostDeployTestBase {
 
@@ -33,7 +34,7 @@ contract PostDeployTests is PostDeployTestBase {
 
         accessControls = AccessControls(ACCESS_CONTROLS);
         beacon         = Beacon(BEACON);
-        controller     = Controller(CONTROLLER);
+        controller     = IMainnetControllerFull(CONTROLLER);
     }
 
     function _getBlock() internal pure returns (uint256) {
@@ -111,12 +112,43 @@ contract PostDeployTests is PostDeployTestBase {
 
         // Configurations: migrate erc4626 max exchange rates.
 
+        _assertERC4626MaxExchangeRate(Ethereum.MORPHO_VAULT_USDC_BC);
+        _assertERC4626MaxExchangeRate(Ethereum.MORPHO_VAULT_DAI_1);
+        _assertERC4626MaxExchangeRate(Ethereum.MORPHO_VAULT_USDS);
+        _assertERC4626MaxExchangeRate(Ethereum.MORPHO_VAULT_V2_USDT);
+        _assertERC4626MaxExchangeRate(Ethereum.SUSDS);
+        _assertERC4626MaxExchangeRate(Ethereum.FLUID_SUSDS);
+        _assertERC4626MaxExchangeRate(Ethereum.SUSDE);
+        _assertERC4626MaxExchangeRate(Ethereum.SYRUP_USDC);
+        _assertERC4626MaxExchangeRate(Ethereum.SYRUP_USDT);
+        _assertERC4626MaxExchangeRate(Ethereum.ARKIS_VAULT);
+
         // Configurations: migrate curve max slippage.
+
+        _assertCurveMaxSlippage(Ethereum.CURVE_SUSDSUSDT);
+        _assertCurveMaxSlippage(Ethereum.CURVE_PYUSDUSDC);
+        _assertCurveMaxSlippage(Ethereum.CURVE_USDCUSDT);
+        _assertCurveMaxSlippage(Ethereum.CURVE_PYUSDUSDS);
+        _assertCurveMaxSlippage(Ethereum.CURVE_WEETHWETHNG);
 
         // Configurations: migrate aave max slippage.
 
+        _assertAaveMaxSlippage(Ethereum.ATOKEN_CORE_USDC);
+        _assertAaveMaxSlippage(Ethereum.ATOKEN_CORE_USDE);
+        _assertAaveMaxSlippage(Ethereum.ATOKEN_CORE_USDS);
+        _assertAaveMaxSlippage(Ethereum.ATOKEN_CORE_USDT);
+        _assertAaveMaxSlippage(Ethereum.ATOKEN_PRIME_USDS);
+        _assertAaveMaxSlippage(SparkLend.DAI_SPTOKEN);
+        _assertAaveMaxSlippage(SparkLend.USDC_SPTOKEN);
+        _assertAaveMaxSlippage(SparkLend.USDS_SPTOKEN);
+        _assertAaveMaxSlippage(SparkLend.USDT_SPTOKEN);
+        _assertAaveMaxSlippage(SparkLend.PYUSD_SPTOKEN);
+        _assertAaveMaxSlippage(SparkLend.WETH_SPTOKEN);
+
         // Configurations: migrate uniswapV4 pools.
-    
+
+        _assertUniswapV4Migration(Ethereum.PYUSD_USDS_POOL_ID);
+        _assertUniswapV4Migration(Ethereum.USDT_USDS_POOL_ID);
     }
 
     function test_postDeployEvents() external {
@@ -180,9 +212,78 @@ contract PostDeployTests is PostDeployTestBase {
 
         VmSafe.EthGetLogs[] memory controllerAllLogs = _getEvents(block.chainid, CONTROLLER, "");
 
-        assertEq(controllerAllLogs.length, 32);
+        assertEq(controllerAllLogs.length, 55);
 
+        // IntegrationSet(integrationId, config) from ConfigureController: updateIntegrations.
+        _assertIntegrationSetEvent(controllerAllLogs[0],  bytes32(keccak256(abi.encodePacked("AAVE_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[1],  bytes32(keccak256(abi.encodePacked("CCTP_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[2],  bytes32(keccak256(abi.encodePacked("CENTRIFUGE_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[3],  bytes32(keccak256(abi.encodePacked("CURVE_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[4],  bytes32(keccak256(abi.encodePacked("DAI_USDS_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[5],  bytes32(keccak256(abi.encodePacked("ERC4626_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[6],  bytes32(keccak256(abi.encodePacked("ERC7540_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[7],  bytes32(keccak256(abi.encodePacked("ETHENA_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[8],  bytes32(keccak256(abi.encodePacked("FARM_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[9],  bytes32(keccak256(abi.encodePacked("LAYER_ZERO_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[10], bytes32(keccak256(abi.encodePacked("MAPLE_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[11], bytes32(keccak256(abi.encodePacked("MERKL_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[12], bytes32(keccak256(abi.encodePacked("OTC_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[13], bytes32(keccak256(abi.encodePacked("PENDLE_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[14], bytes32(keccak256(abi.encodePacked("PSM_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[15], bytes32(keccak256(abi.encodePacked("SPARK_VAULT_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[16], bytes32(keccak256(abi.encodePacked("SUPERSTATE_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[17], bytes32(keccak256(abi.encodePacked("TRANSFER_ASSET_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[18], bytes32(keccak256(abi.encodePacked("TRANSFER_ASSET_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[19], bytes32(keccak256(abi.encodePacked("UNISWAP_V3_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[20], bytes32(keccak256(abi.encodePacked("UNISWAP_V4_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[21], bytes32(keccak256(abi.encodePacked("USDS_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[22], bytes32(keccak256(abi.encodePacked("WEETH_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[23], bytes32(keccak256(abi.encodePacked("WRAP_PROXY_ETH_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[24], bytes32(keccak256(abi.encodePacked("WSTETH_FACET"))));
+
+        // ERC4626MaxExchangeRateSet(token, maxExchangeRate) from ConfigureController: setMaxExchangeRate.
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[25], Ethereum.MORPHO_VAULT_USDC_BC);
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[26], Ethereum.MORPHO_VAULT_DAI_1);
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[27], Ethereum.MORPHO_VAULT_USDS);
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[28], Ethereum.MORPHO_VAULT_V2_USDT);
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[29], Ethereum.SUSDS);
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[30], Ethereum.FLUID_SUSDS);
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[31], Ethereum.SUSDE);
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[32], Ethereum.SYRUP_USDC);
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[33], Ethereum.SYRUP_USDT);
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[34], Ethereum.ARKIS_VAULT);
+
+        // CurveMaxSlippageSet(pool, maxSlippage) from ConfigureController: setMaxSlippage.
+        _assertCurveMaxSlippageSetEvent(controllerAllLogs[35], Ethereum.CURVE_SUSDSUSDT);
+        _assertCurveMaxSlippageSetEvent(controllerAllLogs[36], Ethereum.CURVE_PYUSDUSDC);
+        _assertCurveMaxSlippageSetEvent(controllerAllLogs[37], Ethereum.CURVE_USDCUSDT);
+        _assertCurveMaxSlippageSetEvent(controllerAllLogs[38], Ethereum.CURVE_PYUSDUSDS);
+        _assertCurveMaxSlippageSetEvent(controllerAllLogs[39], Ethereum.CURVE_WEETHWETHNG);
+
+        // AaveMaxSlippageSet(aToken, maxSlippage) from ConfigureController: setMaxSlippage.
+        _assertAaveMaxSlippageSetEvent(controllerAllLogs[40], Ethereum.ATOKEN_CORE_USDC);
+        _assertAaveMaxSlippageSetEvent(controllerAllLogs[41], Ethereum.ATOKEN_CORE_USDE);
+        _assertAaveMaxSlippageSetEvent(controllerAllLogs[42], Ethereum.ATOKEN_CORE_USDS);
+        _assertAaveMaxSlippageSetEvent(controllerAllLogs[43], Ethereum.ATOKEN_CORE_USDT);
+        _assertAaveMaxSlippageSetEvent(controllerAllLogs[44], Ethereum.ATOKEN_PRIME_USDS);
+        _assertAaveMaxSlippageSetEvent(controllerAllLogs[45], SparkLend.DAI_SPTOKEN);
+        _assertAaveMaxSlippageSetEvent(controllerAllLogs[46], SparkLend.USDC_SPTOKEN);
+        _assertAaveMaxSlippageSetEvent(controllerAllLogs[47], SparkLend.USDS_SPTOKEN);
+        _assertAaveMaxSlippageSetEvent(controllerAllLogs[48], SparkLend.USDT_SPTOKEN);
+        _assertAaveMaxSlippageSetEvent(controllerAllLogs[49], SparkLend.PYUSD_SPTOKEN);
+        _assertAaveMaxSlippageSetEvent(controllerAllLogs[50], SparkLend.WETH_SPTOKEN);
+
+        // UniswapV4 Migration events.
+        _assertUniswapV4MaxSlippageSetEvent(controllerAllLogs[51], Ethereum.PYUSD_USDS_POOL_ID);
+        _assertUniswapV4MaxSlippageSetEvent(controllerAllLogs[52], Ethereum.USDT_USDS_POOL_ID);
+
+        _assertUniswapV4TickLimitsSetEvent(controllerAllLogs[53], Ethereum.PYUSD_USDS_POOL_ID);
+        _assertUniswapV4TickLimitsSetEvent(controllerAllLogs[54], Ethereum.USDT_USDS_POOL_ID);
     }
+
+    /*******************************************************************************************/
+    /*** Helper functions                                                                    ***/
+    /*******************************************************************************************/
 
     function _assertIntegration(bytes32 integrationId) internal view{
         IEI.Config memory beaconConfig     = beacon.getConfig(integrationId);
@@ -195,6 +296,94 @@ contract PostDeployTests is PostDeployTestBase {
             assertEq(controllerConfig.wires[i].callSelector,     beaconConfig.wires[i].callSelector);
             assertEq(controllerConfig.wires[i].delegateSelector, beaconConfig.wires[i].delegateSelector);
         }
+    }
+
+    function _assertERC4626MaxExchangeRate(address token) internal view {
+        uint256 oldMaxExchangeRate = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxExchangeRates(token);
+
+        assertEq(controller.erc4626_getMaxExchangeRate(token), oldMaxExchangeRate);
+    }
+
+    function _assertCurveMaxSlippage(address pool) internal view {
+        uint256 oldMaxSlippage = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxSlippages(pool);
+
+        assertEq(controller.curve_getMaxSlippage(pool), oldMaxSlippage);
+    }
+
+    function _assertAaveMaxSlippage(address aToken) internal view {
+        uint256 oldMaxSlippage = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxSlippages(aToken);
+
+        assertEq(controller.aave_getMaxSlippage(aToken), oldMaxSlippage);
+    }
+
+    function _assertUniswapV4Migration(bytes32 poolId) internal view {
+        uint256 oldMaxSlippage = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxSlippages(address(uint160(uint256(poolId))));
+
+        assertEq(controller.uniswapV4_getMaxSlippage(poolId), oldMaxSlippage);
+
+        (int24 tickLower, int24 tickUpper, uint24 maxTickSpacing) = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).uniswapV4TickLimits(poolId);
+
+        assertEq(controller.uniswapV4_getTickLimits(poolId), (tickLower, tickUpper, maxTickSpacing));
+    }
+
+    /*******************************************************************************************/
+    /*** Event test helpers                                                                  ***/
+    /*******************************************************************************************/
+
+    function _assertIntegrationSetEvent(VmSafe.EthGetLogs memory log, bytes32 integrationId) internal view {
+        IEI.Config memory controllerConfig = abi.decode(log.data, (IEI.Config));
+        IEI.Config memory beaconConfig     = beacon.getConfig(integrationId);
+
+        assertEq(log.topics[0], IEI.IntegrationSet.selector);
+        assertEq(log.topics[1], integrationId);
+
+        assertEq(controllerConfig.facet,        beaconConfig.facet);
+        assertEq(controllerConfig.wires.length, beaconConfig.wires.length);
+
+        for (uint256 i = 0; i < controllerConfig.wires.length; ++i) {
+            assertEq(controllerConfig.wires[i].callSelector,     beaconConfig.wires[i].callSelector);
+            assertEq(controllerConfig.wires[i].delegateSelector, beaconConfig.wires[i].delegateSelector);
+        }
+    }
+
+    function _assertERC4626MaxExchangeRateSetEvent(VmSafe.EthGetLogs memory log, address token) internal view {
+        uint256 oldMaxExchangeRate = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxExchangeRates(token);
+
+        assertEq(log.topics[0],             IERC4626Facet.ERC4626MaxExchangeRateSet.selector);
+        assertEq(_toAddress(log.topics[1]), token);
+        assertEq(log.data,                  abi.encode(oldMaxExchangeRate));
+    }
+
+    function _assertCurveMaxSlippageSetEvent(VmSafe.EthGetLogs memory log, address pool) internal view {
+        uint256 oldMaxSlippage = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxSlippages(pool);
+
+        assertEq(log.topics[0],             ICurveFacet.CurveMaxSlippageSet.selector);
+        assertEq(_toAddress(log.topics[1]), pool);
+        assertEq(log.data,                  abi.encode(oldMaxSlippage));
+    }
+
+    function _assertAaveMaxSlippageSetEvent(VmSafe.EthGetLogs memory log, address aToken) internal view {
+        uint256 oldMaxSlippage = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxSlippages(aToken);
+
+        assertEq(log.topics[0],             IAaveFacet.AaveMaxSlippageSet.selector);
+        assertEq(_toAddress(log.topics[1]), aToken);
+        assertEq(log.data,                  abi.encode(oldMaxSlippage));
+    }
+
+    function _assertUniswapV4MaxSlippageSetEvent(VmSafe.EthGetLogs memory log, bytes32 poolId) internal view {
+        uint256 oldMaxSlippage = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxSlippages(address(uint160(uint256(poolId))));
+
+        assertEq(log.topics[0], IUniswapV4Facet.UniswapV4MaxSlippageSet.selector);
+        assertEq(log.topics[1], poolId);
+        assertEq(log.data,      abi.encode(oldMaxSlippage));
+    }
+    
+    function _assertUniswapV4TickLimitsSetEvent(VmSafe.EthGetLogs memory log, bytes32 poolId) internal view {
+        (int24 tickLower, int24 tickUpper, uint24 maxTickSpacing) = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).uniswapV4TickLimits(poolId);
+
+        assertEq(log.topics[0], IUniswapV4Facet.UniswapV4TickLimitsSet.selector);
+        assertEq(log.topics[1], poolId);
+        assertEq(log.data,      abi.encode(tickLower, tickUpper, maxTickSpacing));
     }
 
 }
