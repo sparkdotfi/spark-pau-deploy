@@ -123,13 +123,12 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(integrations[15].id, bytes32(keccak256(abi.encodePacked("SPARK_VAULT_FACET"))));
         assertEq(integrations[16].id, bytes32(keccak256(abi.encodePacked("SUPERSTATE_FACET"))));
         assertEq(integrations[17].id, bytes32(keccak256(abi.encodePacked("TRANSFER_ASSET_FACET"))));
-        assertEq(integrations[18].id, bytes32(keccak256(abi.encodePacked("TRANSFER_ASSET_FACET"))));
-        assertEq(integrations[19].id, bytes32(keccak256(abi.encodePacked("UNISWAP_V3_FACET"))));
-        assertEq(integrations[20].id, bytes32(keccak256(abi.encodePacked("UNISWAP_V4_FACET"))));
-        assertEq(integrations[21].id, bytes32(keccak256(abi.encodePacked("USDS_FACET"))));
-        assertEq(integrations[22].id, bytes32(keccak256(abi.encodePacked("WEETH_FACET"))));
-        assertEq(integrations[23].id, bytes32(keccak256(abi.encodePacked("WRAP_PROXY_ETH_FACET"))));
-        assertEq(integrations[24].id, bytes32(keccak256(abi.encodePacked("WSTETH_FACET"))));
+        assertEq(integrations[18].id, bytes32(keccak256(abi.encodePacked("UNISWAP_V3_FACET"))));
+        assertEq(integrations[19].id, bytes32(keccak256(abi.encodePacked("UNISWAP_V4_FACET"))));
+        assertEq(integrations[20].id, bytes32(keccak256(abi.encodePacked("USDS_FACET"))));
+        assertEq(integrations[21].id, bytes32(keccak256(abi.encodePacked("WEETH_FACET"))));
+        assertEq(integrations[22].id, bytes32(keccak256(abi.encodePacked("WRAP_PROXY_ETH_FACET"))));
+        assertEq(integrations[23].id, bytes32(keccak256(abi.encodePacked("WSTETH_FACET"))));
 
         for (uint256 i = 0; i < integrations.length; i++) {
             _assertIntegration(integrations[i].id);
@@ -258,13 +257,12 @@ contract PostDeployTests is PostDeployTestBase {
         _assertIntegrationSetEvent(controllerAllLogs[15], bytes32(keccak256(abi.encodePacked("SPARK_VAULT_FACET"))));
         _assertIntegrationSetEvent(controllerAllLogs[16], bytes32(keccak256(abi.encodePacked("SUPERSTATE_FACET"))));
         _assertIntegrationSetEvent(controllerAllLogs[17], bytes32(keccak256(abi.encodePacked("TRANSFER_ASSET_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[18], bytes32(keccak256(abi.encodePacked("TRANSFER_ASSET_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[19], bytes32(keccak256(abi.encodePacked("UNISWAP_V3_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[20], bytes32(keccak256(abi.encodePacked("UNISWAP_V4_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[21], bytes32(keccak256(abi.encodePacked("USDS_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[22], bytes32(keccak256(abi.encodePacked("WEETH_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[23], bytes32(keccak256(abi.encodePacked("WRAP_PROXY_ETH_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[24], bytes32(keccak256(abi.encodePacked("WSTETH_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[18], bytes32(keccak256(abi.encodePacked("UNISWAP_V3_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[19], bytes32(keccak256(abi.encodePacked("UNISWAP_V4_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[20], bytes32(keccak256(abi.encodePacked("USDS_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[21], bytes32(keccak256(abi.encodePacked("WEETH_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[22], bytes32(keccak256(abi.encodePacked("WRAP_PROXY_ETH_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[23], bytes32(keccak256(abi.encodePacked("WSTETH_FACET"))));
 
         // ERC4626MaxExchangeRateSet(token, maxExchangeRate) from ConfigureController: setMaxExchangeRate.
         _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[25], Ethereum.MORPHO_VAULT_USDC_BC);

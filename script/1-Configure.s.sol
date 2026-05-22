@@ -203,7 +203,7 @@ contract ConfigureController is Script {
         if (allIntegrationIds.wrapProxyETHFacet  != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.wrapProxyETHFacet;
         if (allIntegrationIds.wstethFacet        != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.wstethFacet;
 
-        require(i + 1 == config.readUint(".integrationIds.length"), "ConfigureController/invalid-number-of-facets");
+        require(i == config.readUint(".integrationIds.length"), "ConfigureController/invalid-number-of-facets");
 
         controller.updateIntegrations(integrationIds);
     }
