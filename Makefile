@@ -58,11 +58,11 @@ deploy-mainnet-staging:
 
 configure-mainnet-production:
 	CHAIN=mainnet ENV=production forge script script/1-Configure.s.sol:ConfigureController \
-		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(MAINNET_RPC_URL)
+		--sender $(ETH_FROM) --account deployer --broadcast --gas-estimate-multiplier 110 --rpc-url $(MAINNET_RPC_URL)
 
 configure-mainnet-staging:
 	CHAIN=mainnet ENV=staging forge script script/1-Configure.s.sol:ConfigureController \
-		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(MAINNET_RPC_URL)
+		--sender $(ETH_FROM) --account deployer --broadcast --gas-estimate-multiplier 110 --rpc-url $(MAINNET_RPC_URL)
 
 # --------------------------------------------------------------------------------------------------
 # Transfer Roles                                                                                   #

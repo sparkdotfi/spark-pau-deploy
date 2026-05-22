@@ -88,16 +88,16 @@ contract ConfigureController is Script {
 
         // Step 2: Migrate ERC4626 max exchange rates.
 
-        _migrateERC4626MaxExchangeRates(Ethereum.MORPHO_VAULT_USDC_BC, 10);
-        _migrateERC4626MaxExchangeRates(Ethereum.MORPHO_VAULT_DAI_1,   10);
-        _migrateERC4626MaxExchangeRates(Ethereum.MORPHO_VAULT_USDS,    10);
-        _migrateERC4626MaxExchangeRates(Ethereum.MORPHO_VAULT_V2_USDT, 1_000_000);
-        _migrateERC4626MaxExchangeRates(Ethereum.SUSDS,                10);
-        _migrateERC4626MaxExchangeRates(Ethereum.FLUID_SUSDS,          10);
-        _migrateERC4626MaxExchangeRates(Ethereum.SUSDE,                10);
-        _migrateERC4626MaxExchangeRates(Ethereum.SYRUP_USDC,           10);
-        _migrateERC4626MaxExchangeRates(Ethereum.SYRUP_USDT,           10);
-        _migrateERC4626MaxExchangeRates(Ethereum.ARKIS_VAULT,          10);
+        _migrateERC4626MaxExchangeRates(Ethereum.MORPHO_VAULT_USDC_BC);
+        _migrateERC4626MaxExchangeRates(Ethereum.MORPHO_VAULT_DAI_1);
+        _migrateERC4626MaxExchangeRates(Ethereum.MORPHO_VAULT_USDS);
+        _migrateERC4626MaxExchangeRates(Ethereum.MORPHO_VAULT_V2_USDT);
+        _migrateERC4626MaxExchangeRates(Ethereum.SUSDS);
+        _migrateERC4626MaxExchangeRates(Ethereum.FLUID_SUSDS);
+        _migrateERC4626MaxExchangeRates(Ethereum.SUSDE);
+        _migrateERC4626MaxExchangeRates(Ethereum.SYRUP_USDC);
+        _migrateERC4626MaxExchangeRates(Ethereum.SYRUP_USDT);
+        _migrateERC4626MaxExchangeRates(Ethereum.ARKIS_VAULT);
 
         console2.log("ERC4626 max exchange rates updated");
 
@@ -138,11 +138,13 @@ contract ConfigureController is Script {
         vm.stopBroadcast();
     }
 
-    function _migrateERC4626MaxExchangeRates(address vault, uint256 rate) internal {
-        controller.erc4626_setMaxExchangeRate(vault, 1, rate);
+    function _migrateERC4626MaxExchangeRates(address vault) internal {
+        uint256 oldRate = oldController.maxExchangeRates(vault);
+        
+        controller.erc4626_setMaxExchangeRate(vault, controller.erc4626_EXCHANGE_RATE_PRECISION(), oldRate);
 
         require(
-            controller.erc4626_getMaxExchangeRate(vault) == oldController.maxExchangeRates(vault),
+            controller.erc4626_getMaxExchangeRate(vault) == oldRate,
             "ConfigureController/max-exchange-rate-not-migrated"
         );
     }
@@ -172,36 +174,34 @@ contract ConfigureController is Script {
 
         bytes32[] memory integrationIds = new bytes32[](config.readUint(".integrationIds.length"));
 
-        bytes32 emptyIntegrationId = bytes32(keccak256(abi.encodePacked("")));
-
         uint256 i;
 
-        if (allIntegrationIds.aaveFacet          != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.aaveFacet;
-        if (allIntegrationIds.basinFacet         != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.basinFacet;
-        if (allIntegrationIds.cctpFacet          != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.cctpFacet;
-        if (allIntegrationIds.centrifugeFacet    != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.centrifugeFacet;
-        if (allIntegrationIds.curveFacet         != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.curveFacet;
-        if (allIntegrationIds.daiUsdsFacet       != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.daiUsdsFacet;
-        if (allIntegrationIds.erc4626Facet       != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.erc4626Facet;
-        if (allIntegrationIds.erc7540Facet       != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.erc7540Facet;
-        if (allIntegrationIds.ethenaFacet        != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.ethenaFacet;
-        if (allIntegrationIds.farmFacet          != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.farmFacet;
-        if (allIntegrationIds.layerZeroFacet     != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.layerZeroFacet;
-        if (allIntegrationIds.mapleFacet         != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.mapleFacet;
-        if (allIntegrationIds.merklFacet         != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.merklFacet;
-        if (allIntegrationIds.otcFacet           != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.otcFacet;
-        if (allIntegrationIds.pendleFacet        != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.pendleFacet;
-        if (allIntegrationIds.psmFacet           != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.psmFacet;
-        if (allIntegrationIds.psm3Facet          != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.psm3Facet;
-        if (allIntegrationIds.sparkVaultFacet    != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.sparkVaultFacet;
-        if (allIntegrationIds.superstateFacet    != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.superstateFacet;
-        if (allIntegrationIds.transferAssetFacet != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.transferAssetFacet;
-        if (allIntegrationIds.uniswapV3Facet     != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.uniswapV3Facet;
-        if (allIntegrationIds.uniswapV4Facet     != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.uniswapV4Facet;
-        if (allIntegrationIds.usdsFacet          != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.usdsFacet;
-        if (allIntegrationIds.weethFacet         != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.weethFacet;
-        if (allIntegrationIds.wrapProxyETHFacet  != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.wrapProxyETHFacet;
-        if (allIntegrationIds.wstethFacet        != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.wstethFacet;
+        if (allIntegrationIds.aaveFacet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.aaveFacet;
+        if (allIntegrationIds.basinFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.basinFacet;
+        if (allIntegrationIds.cctpFacet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.cctpFacet;
+        if (allIntegrationIds.centrifugeFacet    != bytes32(0)) integrationIds[i++] = allIntegrationIds.centrifugeFacet;
+        if (allIntegrationIds.curveFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.curveFacet;
+        if (allIntegrationIds.daiUsdsFacet       != bytes32(0)) integrationIds[i++] = allIntegrationIds.daiUsdsFacet;
+        if (allIntegrationIds.erc4626Facet       != bytes32(0)) integrationIds[i++] = allIntegrationIds.erc4626Facet;
+        if (allIntegrationIds.erc7540Facet       != bytes32(0)) integrationIds[i++] = allIntegrationIds.erc7540Facet;
+        if (allIntegrationIds.ethenaFacet        != bytes32(0)) integrationIds[i++] = allIntegrationIds.ethenaFacet;
+        if (allIntegrationIds.farmFacet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.farmFacet;
+        if (allIntegrationIds.layerZeroFacet     != bytes32(0)) integrationIds[i++] = allIntegrationIds.layerZeroFacet;
+        if (allIntegrationIds.mapleFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.mapleFacet;
+        if (allIntegrationIds.merklFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.merklFacet;
+        if (allIntegrationIds.otcFacet           != bytes32(0)) integrationIds[i++] = allIntegrationIds.otcFacet;
+        if (allIntegrationIds.pendleFacet        != bytes32(0)) integrationIds[i++] = allIntegrationIds.pendleFacet;
+        if (allIntegrationIds.psmFacet           != bytes32(0)) integrationIds[i++] = allIntegrationIds.psmFacet;
+        if (allIntegrationIds.psm3Facet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.psm3Facet;
+        if (allIntegrationIds.sparkVaultFacet    != bytes32(0)) integrationIds[i++] = allIntegrationIds.sparkVaultFacet;
+        if (allIntegrationIds.superstateFacet    != bytes32(0)) integrationIds[i++] = allIntegrationIds.superstateFacet;
+        if (allIntegrationIds.transferAssetFacet != bytes32(0)) integrationIds[i++] = allIntegrationIds.transferAssetFacet;
+        if (allIntegrationIds.uniswapV3Facet     != bytes32(0)) integrationIds[i++] = allIntegrationIds.uniswapV3Facet;
+        if (allIntegrationIds.uniswapV4Facet     != bytes32(0)) integrationIds[i++] = allIntegrationIds.uniswapV4Facet;
+        if (allIntegrationIds.usdsFacet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.usdsFacet;
+        if (allIntegrationIds.weethFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.weethFacet;
+        if (allIntegrationIds.wrapProxyETHFacet  != bytes32(0)) integrationIds[i++] = allIntegrationIds.wrapProxyETHFacet;
+        if (allIntegrationIds.wstethFacet        != bytes32(0)) integrationIds[i++] = allIntegrationIds.wstethFacet;
 
         require(i == config.readUint(".integrationIds.length"), "ConfigureController/invalid-number-of-facets");
 
@@ -211,32 +211,32 @@ contract ConfigureController is Script {
     function _readIntegrationIds(
         string memory config
     ) internal pure returns (IntegrationIds memory integrationIds) {
-        integrationIds.aaveFacet          = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.aaveFacet"))));
-        integrationIds.basinFacet         = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.basinFacet"))));
-        integrationIds.cctpFacet          = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.cctpFacet"))));
-        integrationIds.centrifugeFacet    = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.centrifugeFacet"))));
-        integrationIds.curveFacet         = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.curveFacet"))));
-        integrationIds.daiUsdsFacet       = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.daiUsdsFacet"))));
-        integrationIds.erc4626Facet       = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.erc4626Facet"))));
-        integrationIds.erc7540Facet       = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.erc7540Facet"))));
-        integrationIds.ethenaFacet        = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.ethenaFacet"))));
-        integrationIds.farmFacet          = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.farmFacet"))));
-        integrationIds.layerZeroFacet     = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.layerZeroFacet"))));
-        integrationIds.mapleFacet         = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.mapleFacet"))));
-        integrationIds.merklFacet         = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.merklFacet"))));
-        integrationIds.otcFacet           = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.otcFacet"))));
-        integrationIds.pendleFacet        = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.pendleFacet"))));
-        integrationIds.psmFacet           = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.psmFacet"))));
-        integrationIds.psm3Facet          = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.psm3Facet"))));
-        integrationIds.sparkVaultFacet    = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.sparkVaultFacet"))));
-        integrationIds.superstateFacet    = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.superstateFacet"))));
-        integrationIds.transferAssetFacet = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.transferAssetFacet"))));
-        integrationIds.uniswapV3Facet     = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.uniswapV3Facet"))));
-        integrationIds.uniswapV4Facet     = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.uniswapV4Facet"))));
-        integrationIds.usdsFacet          = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.usdsFacet"))));
-        integrationIds.weethFacet         = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.weethFacet"))));
-        integrationIds.wrapProxyETHFacet  = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.wrapProxyETHFacet"))));
-        integrationIds.wstethFacet        = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.wstethFacet"))));
+        integrationIds.aaveFacet          = bytes32(abi.encodePacked(config.readString(".integrationIds.aaveFacet")));
+        integrationIds.basinFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.basinFacet")));
+        integrationIds.cctpFacet          = bytes32(abi.encodePacked(config.readString(".integrationIds.cctpFacet")));
+        integrationIds.centrifugeFacet    = bytes32(abi.encodePacked(config.readString(".integrationIds.centrifugeFacet")));
+        integrationIds.curveFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.curveFacet")));
+        integrationIds.daiUsdsFacet       = bytes32(abi.encodePacked(config.readString(".integrationIds.daiUsdsFacet")));
+        integrationIds.erc4626Facet       = bytes32(abi.encodePacked(config.readString(".integrationIds.erc4626Facet")));
+        integrationIds.erc7540Facet       = bytes32(abi.encodePacked(config.readString(".integrationIds.erc7540Facet")));
+        integrationIds.ethenaFacet        = bytes32(abi.encodePacked(config.readString(".integrationIds.ethenaFacet")));
+        integrationIds.farmFacet          = bytes32(abi.encodePacked(config.readString(".integrationIds.farmFacet")));
+        integrationIds.layerZeroFacet     = bytes32(abi.encodePacked(config.readString(".integrationIds.layerZeroFacet")));
+        integrationIds.mapleFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.mapleFacet")));
+        integrationIds.merklFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.merklFacet")));
+        integrationIds.otcFacet           = bytes32(abi.encodePacked(config.readString(".integrationIds.otcFacet")));
+        integrationIds.pendleFacet        = bytes32(abi.encodePacked(config.readString(".integrationIds.pendleFacet")));
+        integrationIds.psmFacet           = bytes32(abi.encodePacked(config.readString(".integrationIds.psmFacet")));
+        integrationIds.psm3Facet          = bytes32(abi.encodePacked(config.readString(".integrationIds.psm3Facet")));
+        integrationIds.sparkVaultFacet    = bytes32(abi.encodePacked(config.readString(".integrationIds.sparkVaultFacet")));
+        integrationIds.superstateFacet    = bytes32(abi.encodePacked(config.readString(".integrationIds.superstateFacet")));
+        integrationIds.transferAssetFacet = bytes32(abi.encodePacked(config.readString(".integrationIds.transferAssetFacet")));
+        integrationIds.uniswapV3Facet     = bytes32(abi.encodePacked(config.readString(".integrationIds.uniswapV3Facet")));
+        integrationIds.uniswapV4Facet     = bytes32(abi.encodePacked(config.readString(".integrationIds.uniswapV4Facet")));
+        integrationIds.usdsFacet          = bytes32(abi.encodePacked(config.readString(".integrationIds.usdsFacet")));
+        integrationIds.weethFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.weethFacet")));
+        integrationIds.wrapProxyETHFacet  = bytes32(abi.encodePacked(config.readString(".integrationIds.wrapProxyETHFacet")));
+        integrationIds.wstethFacet        = bytes32(abi.encodePacked(config.readString(".integrationIds.wstethFacet")));
     }
 
 }

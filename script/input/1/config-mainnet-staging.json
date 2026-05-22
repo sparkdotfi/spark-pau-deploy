@@ -1,9 +1,9 @@
 {
-  "_info": "Spark Mainnet Production controller configuration.",
+  "_info": "Spark Mainnet Staging controller configuration.",
 
   "chainId": 1,
 
-  "controller": "0x0000000000000000000000000000000000000000",
+  "controller": "0x6d6E6f093e4042939A2d95242109Ee0dB73fC5C3",
 
   "integrationIds": {
     "length": 24,

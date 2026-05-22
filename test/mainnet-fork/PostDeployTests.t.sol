@@ -33,12 +33,12 @@ interface IOldMainnetControllerLike {
 contract PostDeployTests is PostDeployTestBase {
 
     // Paste from script output.
-    address internal constant ACCESS_CONTROLS = 0x0000000000000000000000000000000000000000;
-    address internal constant CONTROLLER      = 0x0000000000000000000000000000000000000000;
-    address internal constant DEPLOYER        = 0x0000000000000000000000000000000000000000;
+    address internal constant ACCESS_CONTROLS = 0xDe3bf6a8C4BE92598d4e736Bd443b8EB5a2b067E;
+    address internal constant CONTROLLER      = 0x6d6E6f093e4042939A2d95242109Ee0dB73fC5C3;
+    address internal constant DEPLOYER        = 0x1ca4ECaF0E13ca833c80dA835DEEa15e1684361d;
 
     // Get from SKY
-    address internal constant BEACON = 0x0000000000000000000000000000000000000000;
+    address internal constant BEACON = 0x9EA465978500399C6b4b9A356b14b00e6597e705;
 
     address internal constant ADMIN              = Ethereum.SPARK_PROXY;
     address internal constant ALLOCATOR          = Ethereum.ALM_RELAYER_MULTISIG;
@@ -63,7 +63,7 @@ contract PostDeployTests is PostDeployTestBase {
     }
 
     function _getBlock() internal pure returns (uint256) {
-        return 24684236;
+        return 25152391; // May-22-2026 05:48:11 PM +UTC : After all scripts are run.
     }
 
     function test_deployState() external view {
