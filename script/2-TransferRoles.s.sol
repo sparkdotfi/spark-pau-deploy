@@ -1,31 +1,30 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.34;
 
+import { console2 }        from "../lib/forge-std/src/console2.sol";
 import { Script, stdJson } from "../lib/forge-std/src/Script.sol";
 
 import { ScriptTools } from "../lib/dss-test/src/ScriptTools.sol";
 
-import { console2 } from "../lib/forge-std/src/console2.sol";
-
-interface IAccessControls {
+interface IAccessControlsLike {
     
+    function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
+
     function grantRole(bytes32 role, address account) external;
 
-    function setRoleRevoker(bytes32 role, bytes32 revokerRole) external;
+    function setRoleAdmin(bytes32 role, bytes32 adminRole) external;
 
     function revokeRole(bytes32 role, address account) external;
 
-    function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
-
 }
 
-contract ConfigureController is Script {
+contract TransferRoles is Script {
 
     using stdJson     for string;
     using ScriptTools for string;
 
-    bytes32 constant ALLOCATOR_ROLE = keccak256("ALLOCATOR_ROLE");
-    bytes32 constant FREEZER_ROLE   = keccak256("FREEZER_ROLE");
+    bytes32 constant ALLOCATOR_ROLE       = keccak256("ALLOCATOR_ROLE");
+    bytes32 constant ALLOCATOR_ADMIN_ROLE = keccak256("ALLOCATOR_ADMIN_ROLE");
 
     function run() external {
         string memory chain = vm.envOr("CHAIN", string("mainnet"));
@@ -35,30 +34,33 @@ contract ConfigureController is Script {
         vm.setEnv("FOUNDRY_ROOT_CHAINID", vm.toString(block.chainid));
         
         string memory env      = vm.envString("ENV");
-        string memory fileSlug = string(abi.encodePacked("config-", chain, "-", env));
+        string memory fileSlug = string(abi.encodePacked("transfer-", chain, "-", env));
         string memory config   = ScriptTools.loadConfig(fileSlug);
 
-        require(block.chainid == config.readUint(".chainId"), "Invalid chain ID");
-
-        IAccessControls accessControls = IAccessControls(config.readAddress(".accessControls"));
+        require(block.chainid == config.readUint(".chainId"), "TransferRoles/invalid-chain-id");
 
         address admin = config.readAddress(".admin");
 
+        IAccessControlsLike accessControls = IAccessControlsLike(config.readAddress(".accessControls"));
+
         vm.startBroadcast();
 
-        accessControls.grantRole(ALLOCATOR_ROLE, config.readAddress(".allocator"));
-        accessControls.grantRole(FREEZER_ROLE,   config.readAddress(".freezer"));
-        accessControls.grantRole(ALLOCATOR_ROLE, config.readAddress(".backstopAllocator"));
+        // Step 1: Grant roles to allocator, backstop allocator and allocator admin.
 
-        accessControls.setRoleRevoker(ALLOCATOR_ROLE, FREEZER_ROLE);
+        accessControls.grantRole(ALLOCATOR_ROLE,       config.readAddress(".allocator"));
+        accessControls.grantRole(ALLOCATOR_ROLE,       config.readAddress(".backstopAllocator"));
+        accessControls.grantRole(ALLOCATOR_ADMIN_ROLE, config.readAddress(".allocatorAdmin"));
 
-        // Transfer DEFAULT_ADMIN_ROLE to final admin and revoke from deployer.
+        // Step 2: Set role admin for ALLOCATOR_ROLE to ALLOCATOR_ADMIN_ROLE.
 
-        accessControls.grantRole(accessControls.DEFAULT_ADMIN_ROLE(), admin);
+        accessControls.setRoleAdmin(ALLOCATOR_ROLE, ALLOCATOR_ADMIN_ROLE);
 
+        // Step 3: Transfer DEFAULT_ADMIN_ROLE to admin and revoke from deployer.
+
+        accessControls.grantRole(accessControls.DEFAULT_ADMIN_ROLE(),  admin);
         accessControls.revokeRole(accessControls.DEFAULT_ADMIN_ROLE(), msg.sender);
 
-        console2.log("Admin transferred to: ", admin);
+        console2.log("Roles transferred");
 
         vm.stopBroadcast();
     }
