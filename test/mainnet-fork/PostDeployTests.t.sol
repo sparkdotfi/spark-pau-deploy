@@ -10,10 +10,25 @@ import { IMainnetControllerFull }         from "../../lib/diamond-pau/test/inter
 import { AccessControls } from "../../lib/diamond-pau/src/AccessControls.sol";
 import { Beacon }         from "../../lib/diamond-pau/src/Beacon.sol";
 
+import { IERC4626Facet }   from "../../lib/diamond-pau/src/facets/erc4626/IERC4626Facet.sol";
+import { IAaveFacet }      from "../../lib/diamond-pau/src/facets/aave/IAaveFacet.sol";
+import { ICurveFacet }     from "../../lib/diamond-pau/src/facets/curve/ICurveFacet.sol";
+import { IUniswapV4Facet } from "../../lib/diamond-pau/src/facets/uniswap-v4/IUniswapV4Facet.sol";
+
 import { Ethereum }  from "../../lib/spark-address-registry/src/Ethereum.sol";
 import { SparkLend } from "../../lib/spark-address-registry/src/SparkLend.sol";
 
 import { PostDeployTestBase } from "../PostDeployTestBase.t.sol";
+
+interface IOldMainnetControllerLike {
+
+    function uniswapV4TickLimits(bytes32 poolId) external view returns (int24 tickLower, int24 tickUpper, uint24 maxTickSpacing);
+
+    function maxSlippages(address pool) external view returns (uint256 maxSlippage);
+
+    function maxExchangeRates(address vault) external view returns (uint256 maxExchangeRate);
+
+}
 
 contract PostDeployTests is PostDeployTestBase {
 
@@ -24,6 +39,16 @@ contract PostDeployTests is PostDeployTestBase {
 
     // Get from SKY
     address internal constant BEACON = 0x0000000000000000000000000000000000000000;
+
+    address internal constant ADMIN              = Ethereum.SPARK_PROXY;
+    address internal constant ALLOCATOR          = Ethereum.ALM_RELAYER_MULTISIG;
+    address internal constant ALLOCATOR_ADMIN    = Ethereum.ALM_FREEZER_MULTISIG;
+    address internal constant ALM_PROXY          = Ethereum.ALM_PROXY;
+    address internal constant BACKSTOP_ALLOCATOR = Ethereum.ALM_BACKSTOP_RELAYER_MULTISIG;
+    address internal constant RATE_LIMITS        = Ethereum.ALM_RATE_LIMITS;
+
+    bytes32 internal constant PYUSD_USDS_POOL_ID = 0xe63e32b2ae40601662f760d6bf5d771057324fbd97784fe1d3717069f7b75d45;
+    bytes32 internal constant USDT_USDS_POOL_ID  = 0x3b1b1f2e775a6db1664f8e7d59ad568605ea2406312c11aef03146c0cf89d5b9;
 
     AccessControls         internal accessControls;
     Beacon                 internal beacon;
@@ -147,8 +172,8 @@ contract PostDeployTests is PostDeployTestBase {
 
         // Configurations: migrate uniswapV4 pools.
 
-        _assertUniswapV4Migration(Ethereum.PYUSD_USDS_POOL_ID);
-        _assertUniswapV4Migration(Ethereum.USDT_USDS_POOL_ID);
+        _assertUniswapV4Migration(PYUSD_USDS_POOL_ID);
+        _assertUniswapV4Migration(USDT_USDS_POOL_ID);
     }
 
     function test_postDeployEvents() external {
@@ -274,11 +299,11 @@ contract PostDeployTests is PostDeployTestBase {
         _assertAaveMaxSlippageSetEvent(controllerAllLogs[50], SparkLend.WETH_SPTOKEN);
 
         // UniswapV4 Migration events.
-        _assertUniswapV4MaxSlippageSetEvent(controllerAllLogs[51], Ethereum.PYUSD_USDS_POOL_ID);
-        _assertUniswapV4MaxSlippageSetEvent(controllerAllLogs[52], Ethereum.USDT_USDS_POOL_ID);
+        _assertUniswapV4MaxSlippageSetEvent(controllerAllLogs[51], PYUSD_USDS_POOL_ID);
+        _assertUniswapV4MaxSlippageSetEvent(controllerAllLogs[52], USDT_USDS_POOL_ID);
 
-        _assertUniswapV4TickLimitsSetEvent(controllerAllLogs[53], Ethereum.PYUSD_USDS_POOL_ID);
-        _assertUniswapV4TickLimitsSetEvent(controllerAllLogs[54], Ethereum.USDT_USDS_POOL_ID);
+        _assertUniswapV4TickLimitsSetEvent(controllerAllLogs[53], PYUSD_USDS_POOL_ID);
+        _assertUniswapV4TickLimitsSetEvent(controllerAllLogs[54], USDT_USDS_POOL_ID);
     }
 
     /*******************************************************************************************/
@@ -321,9 +346,12 @@ contract PostDeployTests is PostDeployTestBase {
 
         assertEq(controller.uniswapV4_getMaxSlippage(poolId), oldMaxSlippage);
 
-        (int24 tickLower, int24 tickUpper, uint24 maxTickSpacing) = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).uniswapV4TickLimits(poolId);
+        (int24 oldTickLower, int24 oldTickUpper, uint24 oldMaxTickSpacing) = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).uniswapV4TickLimits(poolId);
+        (int24 newTickLower, int24 newTickUpper, uint24 newMaxTickSpacing) = controller.uniswapV4_getTickLimits(poolId);
 
-        assertEq(controller.uniswapV4_getTickLimits(poolId), (tickLower, tickUpper, maxTickSpacing));
+        assertEq(newTickLower,      oldTickLower);
+        assertEq(newTickUpper,      oldTickUpper);
+        assertEq(newMaxTickSpacing, oldMaxTickSpacing);
     }
 
     /*******************************************************************************************/
