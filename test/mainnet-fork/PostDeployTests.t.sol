@@ -4,6 +4,7 @@ pragma solidity ^0.8.34;
 import { VmSafe } from "../../lib/forge-std/src/Vm.sol";
 
 import { IAccessControl }                 from "../../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
+import { Initializable }                  from "../../lib/diamond-pau/lib/oz-upgradeable/contracts/proxy/utils/Initializable.sol";
 import { IEnumerableIntegrations as IEI } from "../../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
 import { IMainnetControllerFull }         from "../../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
 
@@ -33,8 +34,8 @@ interface IOldMainnetControllerLike {
 contract PostDeployTests is PostDeployTestBase {
 
     // Paste from script output.
-    address internal constant ACCESS_CONTROLS = 0xDe3bf6a8C4BE92598d4e736Bd443b8EB5a2b067E;
-    address internal constant CONTROLLER      = 0x6d6E6f093e4042939A2d95242109Ee0dB73fC5C3;
+    address internal constant ACCESS_CONTROLS = 0xD63f44D65180bCEbb1EB3D52858FbE65eE8162A3;
+    address internal constant CONTROLLER      = 0x0DCeDfBDb225F0D0973cf05de08c051A663F463c;
     address internal constant DEPLOYER        = 0x1ca4ECaF0E13ca833c80dA835DEEa15e1684361d;
 
     // Get from SKY
@@ -63,7 +64,7 @@ contract PostDeployTests is PostDeployTestBase {
     }
 
     function _getBlock() internal pure returns (uint256) {
-        return 25152391; // May-22-2026 05:48:11 PM +UTC : After all scripts are run.
+        return 25170722; // May-25-2026 07:07:47 AM +UTC : After all scripts are run.
     }
 
     function test_deployState() external view {
@@ -105,30 +106,30 @@ contract PostDeployTests is PostDeployTestBase {
 
         assertEq(integrations.length, 24);
 
-        assertEq(integrations[0].id,  bytes32(keccak256(abi.encodePacked("AAVE_FACET"))));
-        assertEq(integrations[1].id,  bytes32(keccak256(abi.encodePacked("CCTP_FACET"))));
-        assertEq(integrations[2].id,  bytes32(keccak256(abi.encodePacked("CENTRIFUGE_FACET"))));
-        assertEq(integrations[3].id,  bytes32(keccak256(abi.encodePacked("CURVE_FACET"))));
-        assertEq(integrations[4].id,  bytes32(keccak256(abi.encodePacked("DAI_USDS_FACET"))));
-        assertEq(integrations[5].id,  bytes32(keccak256(abi.encodePacked("ERC4626_FACET"))));
-        assertEq(integrations[6].id,  bytes32(keccak256(abi.encodePacked("ERC7540_FACET"))));
-        assertEq(integrations[7].id,  bytes32(keccak256(abi.encodePacked("ETHENA_FACET"))));
-        assertEq(integrations[8].id,  bytes32(keccak256(abi.encodePacked("FARM_FACET"))));
-        assertEq(integrations[9].id,  bytes32(keccak256(abi.encodePacked("LAYER_ZERO_FACET"))));
-        assertEq(integrations[10].id, bytes32(keccak256(abi.encodePacked("MAPLE_FACET"))));
-        assertEq(integrations[11].id, bytes32(keccak256(abi.encodePacked("MERKL_FACET"))));
-        assertEq(integrations[12].id, bytes32(keccak256(abi.encodePacked("OTC_FACET"))));
-        assertEq(integrations[13].id, bytes32(keccak256(abi.encodePacked("PENDLE_FACET"))));
-        assertEq(integrations[14].id, bytes32(keccak256(abi.encodePacked("PSM_FACET"))));
-        assertEq(integrations[15].id, bytes32(keccak256(abi.encodePacked("SPARK_VAULT_FACET"))));
-        assertEq(integrations[16].id, bytes32(keccak256(abi.encodePacked("SUPERSTATE_FACET"))));
-        assertEq(integrations[17].id, bytes32(keccak256(abi.encodePacked("TRANSFER_ASSET_FACET"))));
-        assertEq(integrations[18].id, bytes32(keccak256(abi.encodePacked("UNISWAP_V3_FACET"))));
-        assertEq(integrations[19].id, bytes32(keccak256(abi.encodePacked("UNISWAP_V4_FACET"))));
-        assertEq(integrations[20].id, bytes32(keccak256(abi.encodePacked("USDS_FACET"))));
-        assertEq(integrations[21].id, bytes32(keccak256(abi.encodePacked("WEETH_FACET"))));
-        assertEq(integrations[22].id, bytes32(keccak256(abi.encodePacked("WRAP_PROXY_ETH_FACET"))));
-        assertEq(integrations[23].id, bytes32(keccak256(abi.encodePacked("WSTETH_FACET"))));
+        assertEq(integrations[0].id,  bytes32(abi.encodePacked("AAVE_FACET")));
+        assertEq(integrations[1].id,  bytes32(abi.encodePacked("CCTP_FACET")));
+        assertEq(integrations[2].id,  bytes32(abi.encodePacked("CENTRIFUGE_FACET")));
+        assertEq(integrations[3].id,  bytes32(abi.encodePacked("CURVE_FACET")));
+        assertEq(integrations[4].id,  bytes32(abi.encodePacked("DAIUSDS_FACET")));
+        assertEq(integrations[5].id,  bytes32(abi.encodePacked("ERC4626_FACET")));
+        assertEq(integrations[6].id,  bytes32(abi.encodePacked("ERC7540_FACET")));
+        assertEq(integrations[7].id,  bytes32(abi.encodePacked("ETHENA_FACET")));
+        assertEq(integrations[8].id,  bytes32(abi.encodePacked("FARM_FACET")));
+        assertEq(integrations[9].id,  bytes32(abi.encodePacked("LAYER_ZERO_FACET")));
+        assertEq(integrations[10].id, bytes32(abi.encodePacked("MAPLE_FACET")));
+        assertEq(integrations[11].id, bytes32(abi.encodePacked("MERKL_FACET")));
+        assertEq(integrations[12].id, bytes32(abi.encodePacked("OTC_FACET")));
+        assertEq(integrations[13].id, bytes32(abi.encodePacked("PENDLE_FACET")));
+        assertEq(integrations[14].id, bytes32(abi.encodePacked("PSM_FACET")));
+        assertEq(integrations[15].id, bytes32(abi.encodePacked("SPARK_VAULT_FACET")));
+        assertEq(integrations[16].id, bytes32(abi.encodePacked("SUPERSTATE_FACET")));
+        assertEq(integrations[17].id, bytes32(abi.encodePacked("TRANSFER_ASSET_FACET")));
+        assertEq(integrations[18].id, bytes32(abi.encodePacked("UNISWAP_V3_FACET")));
+        assertEq(integrations[19].id, bytes32(abi.encodePacked("UNISWAP_V4_FACET")));
+        assertEq(integrations[20].id, bytes32(abi.encodePacked("USDS_FACET")));
+        assertEq(integrations[21].id, bytes32(abi.encodePacked("WEETH_FACET")));
+        assertEq(integrations[22].id, bytes32(abi.encodePacked("WRAP_PROXY_ETH_FACET")));
+        assertEq(integrations[23].id, bytes32(abi.encodePacked("WSTETH_FACET")));
 
         for (uint256 i = 0; i < integrations.length; i++) {
             _assertIntegration(integrations[i].id);
@@ -238,31 +239,34 @@ contract PostDeployTests is PostDeployTestBase {
 
         assertEq(controllerAllLogs.length, 55);
 
+        // Initialized(1) from Controller constructor.
+        _assertInitializedEvent(controllerAllLogs[0]);
+
         // IntegrationSet(integrationId, config) from ConfigureController: updateIntegrations.
-        _assertIntegrationSetEvent(controllerAllLogs[0],  bytes32(keccak256(abi.encodePacked("AAVE_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[1],  bytes32(keccak256(abi.encodePacked("CCTP_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[2],  bytes32(keccak256(abi.encodePacked("CENTRIFUGE_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[3],  bytes32(keccak256(abi.encodePacked("CURVE_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[4],  bytes32(keccak256(abi.encodePacked("DAI_USDS_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[5],  bytes32(keccak256(abi.encodePacked("ERC4626_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[6],  bytes32(keccak256(abi.encodePacked("ERC7540_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[7],  bytes32(keccak256(abi.encodePacked("ETHENA_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[8],  bytes32(keccak256(abi.encodePacked("FARM_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[9],  bytes32(keccak256(abi.encodePacked("LAYER_ZERO_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[10], bytes32(keccak256(abi.encodePacked("MAPLE_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[11], bytes32(keccak256(abi.encodePacked("MERKL_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[12], bytes32(keccak256(abi.encodePacked("OTC_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[13], bytes32(keccak256(abi.encodePacked("PENDLE_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[14], bytes32(keccak256(abi.encodePacked("PSM_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[15], bytes32(keccak256(abi.encodePacked("SPARK_VAULT_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[16], bytes32(keccak256(abi.encodePacked("SUPERSTATE_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[17], bytes32(keccak256(abi.encodePacked("TRANSFER_ASSET_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[18], bytes32(keccak256(abi.encodePacked("UNISWAP_V3_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[19], bytes32(keccak256(abi.encodePacked("UNISWAP_V4_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[20], bytes32(keccak256(abi.encodePacked("USDS_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[21], bytes32(keccak256(abi.encodePacked("WEETH_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[22], bytes32(keccak256(abi.encodePacked("WRAP_PROXY_ETH_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[23], bytes32(keccak256(abi.encodePacked("WSTETH_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[1],  bytes32(abi.encodePacked("AAVE_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[2],  bytes32(abi.encodePacked("CCTP_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[3],  bytes32(abi.encodePacked("CENTRIFUGE_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[4],  bytes32(abi.encodePacked("CURVE_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[5],  bytes32(abi.encodePacked("DAIUSDS_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[6],  bytes32(abi.encodePacked("ERC4626_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[7],  bytes32(abi.encodePacked("ERC7540_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[8],  bytes32(abi.encodePacked("ETHENA_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[9],  bytes32(abi.encodePacked("FARM_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[10], bytes32(abi.encodePacked("LAYER_ZERO_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[11], bytes32(abi.encodePacked("MAPLE_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[12], bytes32(abi.encodePacked("MERKL_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[13], bytes32(abi.encodePacked("OTC_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[14], bytes32(abi.encodePacked("PENDLE_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[15], bytes32(abi.encodePacked("PSM_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[16], bytes32(abi.encodePacked("SPARK_VAULT_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[17], bytes32(abi.encodePacked("SUPERSTATE_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[18], bytes32(abi.encodePacked("TRANSFER_ASSET_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[19], bytes32(abi.encodePacked("UNISWAP_V3_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[20], bytes32(abi.encodePacked("UNISWAP_V4_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[21], bytes32(abi.encodePacked("USDS_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[22], bytes32(abi.encodePacked("WEETH_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[23], bytes32(abi.encodePacked("WRAP_PROXY_ETH_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[24], bytes32(abi.encodePacked("WSTETH_FACET")));
 
         // ERC4626MaxExchangeRateSet(token, maxExchangeRate) from ConfigureController: setMaxExchangeRate.
         _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[25], Ethereum.MORPHO_VAULT_USDC_BC);
@@ -298,10 +302,10 @@ contract PostDeployTests is PostDeployTestBase {
 
         // UniswapV4 Migration events.
         _assertUniswapV4MaxSlippageSetEvent(controllerAllLogs[51], PYUSD_USDS_POOL_ID);
-        _assertUniswapV4MaxSlippageSetEvent(controllerAllLogs[52], USDT_USDS_POOL_ID);
+        _assertUniswapV4TickLimitsSetEvent(controllerAllLogs[52],  PYUSD_USDS_POOL_ID);
 
-        _assertUniswapV4TickLimitsSetEvent(controllerAllLogs[53], PYUSD_USDS_POOL_ID);
-        _assertUniswapV4TickLimitsSetEvent(controllerAllLogs[54], USDT_USDS_POOL_ID);
+        _assertUniswapV4MaxSlippageSetEvent(controllerAllLogs[53], USDT_USDS_POOL_ID);
+        _assertUniswapV4TickLimitsSetEvent(controllerAllLogs[54],  USDT_USDS_POOL_ID);
     }
 
     /*******************************************************************************************/
@@ -355,6 +359,11 @@ contract PostDeployTests is PostDeployTestBase {
     /*******************************************************************************************/
     /*** Event test helpers                                                                  ***/
     /*******************************************************************************************/
+
+    function _assertInitializedEvent(VmSafe.EthGetLogs memory log) internal pure {
+        assertEq(log.topics[0], Initializable.Initialized.selector);
+        assertEq(log.data,      abi.encode(1));
+    }
 
     function _assertIntegrationSetEvent(VmSafe.EthGetLogs memory log, bytes32 integrationId) internal view {
         IEI.Config memory controllerConfig = abi.decode(log.data, (IEI.Config));
