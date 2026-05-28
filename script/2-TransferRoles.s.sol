@@ -18,6 +18,12 @@ interface IAccessControlsLike {
 
 }
 
+interface IControllerLike {
+
+    function accessControls() external view returns (address);
+
+}
+
 contract TransferRoles is Script {
 
     using stdJson     for string;
@@ -41,7 +47,8 @@ contract TransferRoles is Script {
 
         address admin = config.readAddress(".admin");
 
-        IAccessControlsLike accessControls = IAccessControlsLike(config.readAddress(".accessControls"));
+        IControllerLike     controller     = IControllerLike(config.readAddress(".controller"));
+        IAccessControlsLike accessControls = IAccessControlsLike(controller.accessControls());
 
         vm.startBroadcast();
 

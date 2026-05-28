@@ -39,7 +39,8 @@ contract PostDeployTests is PostDeployTestBase {
     address internal constant DEPLOYER        = 0x1ca4ECaF0E13ca833c80dA835DEEa15e1684361d;
 
     // Get from SKY
-    address internal constant BEACON = 0x9EA465978500399C6b4b9A356b14b00e6597e705;
+    address internal constant BEACON      = 0x9EA465978500399C6b4b9A356b14b00e6597e705;
+    address internal constant PAU_FACTORY = 0xabd7925b6a72937FA38F56a2aA466f17BefFEe65;
 
     address internal constant ADMIN              = Ethereum.SPARK_PROXY;
     address internal constant ALLOCATOR          = Ethereum.ALM_RELAYER_MULTISIG;
@@ -84,10 +85,14 @@ contract PostDeployTests is PostDeployTestBase {
 
         assertEq(accessControls.getRoleAdmin(ALLOCATOR_ROLE), ALLOCATOR_ADMIN_ROLE); // via setRoleAdmin.
 
-        // DEPLOYER has no roles on AccessControls
+        // DEPLOYER/PAU_FACTORY has no roles on AccessControls
         assertEq(accessControls.hasRole(ALLOCATOR_ROLE,       DEPLOYER), false);
         assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE,   DEPLOYER), false);
         assertEq(accessControls.hasRole(ALLOCATOR_ADMIN_ROLE, DEPLOYER), false);
+
+        assertEq(accessControls.hasRole(ALLOCATOR_ROLE,       PAU_FACTORY), false);
+        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE,   PAU_FACTORY), false);
+        assertEq(accessControls.hasRole(ALLOCATOR_ADMIN_ROLE, PAU_FACTORY), false);
 
        /*******************************************************************************************/
        /*** Controller post deploy state                                                        ***/
@@ -186,11 +191,11 @@ contract PostDeployTests is PostDeployTestBase {
 
         assertEq(accessControlsAllLogs.length, 7);
 
-        // RoleGranted(DEFAULT_ADMIN_ROLE, DEPLOYER, DEPLOYER) from Deploy: AccessControls constructor.
+        // RoleGranted(DEFAULT_ADMIN_ROLE, DEPLOYER, PAU_FACTORY) from PAUFactory.deployAccessControls: AccessControls constructor.
         assertEq(accessControlsAllLogs[0].topics[0],             IAccessControl.RoleGranted.selector);
         assertEq(accessControlsAllLogs[0].topics[1],             DEFAULT_ADMIN_ROLE);
         assertEq(_toAddress(accessControlsAllLogs[0].topics[2]), DEPLOYER);
-        assertEq(_toAddress(accessControlsAllLogs[0].topics[3]), DEPLOYER);
+        assertEq(_toAddress(accessControlsAllLogs[0].topics[3]), PAU_FACTORY);
 
         // RoleGranted(ALLOCATOR_ROLE, ALLOCATOR, DEPLOYER) from TransferRoles: ALLOCATOR_ROLE grant.
         assertEq(accessControlsAllLogs[1].topics[0],             IAccessControl.RoleGranted.selector);
