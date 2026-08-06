@@ -2,8 +2,5 @@
   "_info": "Spark Mainnet Staging controller deployment.",
 
   "chainId": 1,
-  "deployer": "0x1ca4ECaF0E13ca833c80dA835DEEa15e1684361d",
-  "pauFactory": "0xabd7925b6a72937FA38F56a2aA466f17BefFEe65",
-  "proxy": "0x1601843c5E9bC251A3272907010AFa41Fa18347E",
-  "rateLimits": "0x7A5FD5cf045e010e62147F065cEAe59e5344b188"
+  "deployer": "0x1ca4ECaF0E13ca833c80dA835DEEa15e1684361d"
 }
