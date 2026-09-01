@@ -8,8 +8,8 @@
 #   - foundry keystore account named "deployer" (cast wallet import deployer --interactive)
 #
 # Deployment order (per chain + env):
-#   1. deploy    — deploys AccessControls (deployer as temporary admin), Controller and
-#                  AdministeredAgent
+#   1. deploy    — deploys AccessControls and RateLimits (deployer as temporary admin on both),
+#                  Controller and AdministeredAgent
 #   2. configure — needs controller + administeredAgent pasted into
 #                  script/input/{chainId}/config-{chain}-{env}.json
 
@@ -30,14 +30,14 @@ test-postdeploy-mainnet:
 	forge test --match-path "test/PostDeployTests.t.sol" -vvv
 
 # --------------------------------------------------------------------------------------------------
-# Deploy: AccessControls + Controller + AdministeredAgent                                          #
+# Deploy: AccessControls + RateLimits + Controller + AdministeredAgent                             #
 # --------------------------------------------------------------------------------------------------
-# Deploys AccessControls and AdministeredAgent (with the deployer as temporary admin on both) and a
-# Controller wired to the Sky PAU beacon plus the Spark ALMProxy and RateLimits from
-# spark-address-registry.
+# Deploys AccessControls, RateLimits and AdministeredAgent (with the deployer as temporary admin on
+# all three) and a Controller wired to the Sky PAU beacon and the new RateLimits plus the Spark
+# ALMProxy from spark-address-registry.
 # Input:  script/input/{chainId}/deploy-{chain}-{env}.json (chainId, deployer)
 # Output: script/output/{chainId}/deploy-{chain}-{env}-{timestamp}.json
-#         (accessControls, administeredAgent, controller)
+#         (accessControls, administeredAgent, controller, rateLimits)
 
 # Mainnet
 
@@ -50,12 +50,13 @@ deploy-mainnet-staging:
 		--sender $(ETH_FROM) --account deployer --broadcast --verify --rpc-url $(MAINNET_RPC_URL)
 
 # --------------------------------------------------------------------------------------------------
-# Configure: Controller + AccessControls + AdministeredAgent                                       #
+# Configure: Controller + AccessControls + AdministeredAgent + RateLimits                          #
 # --------------------------------------------------------------------------------------------------
-# Registers the UniswapV4 integration on the controller and copies the UniswapV4 pool config from
-# the legacy ALM_CONTROLLER, grants ALLOCATOR_ROLE to the AdministeredAgent, wires the relayer /
-# backstop relayer / freezer multisigs onto the AdministeredAgent, then hands both AccessControls
-# and the AdministeredAgent over to SPARK_PROXY and drops the deployer.
+# Registers the CCTP integration on the controller, grants ALLOCATOR_ROLE to the AdministeredAgent,
+# wires the relayer / backstop relayer / freezer multisigs onto the AdministeredAgent, grants the
+# CONTROLLER role on RateLimits to the controller, then hands AccessControls, the AdministeredAgent
+# and RateLimits over to SPARK_PROXY and drops the deployer.
+# RateLimits is read from controller.rateLimits(), so it needs no config entry.
 # Input: script/input/{chainId}/config-{chain}-{env}.json
 #        (chainId, administeredAgent, controller, deployer)
 #

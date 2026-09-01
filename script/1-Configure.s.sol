@@ -5,13 +5,15 @@ import { Script, stdJson } from "../lib/forge-std/src/Script.sol";
 
 import { console2 } from "../lib/forge-std/src/console2.sol";
 
+import { CCTPv2Forwarder } from "../lib/diamond-pau/lib/grove-xchain-helpers/src/forwarders/CCTPv2Forwarder.sol";
+
 import { ScriptTools } from "../lib/dss-test/src/ScriptTools.sol";
 
 import { Ethereum } from "../lib/spark-address-registry/src/Ethereum.sol";
 
 import { IAdministeredAgent } from "../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
 
-import { IMainnetControllerFull } from "../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
+import { IMainnetControllerFull as IControllerFull } from "../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
 
 interface IAccessControlsLike {
 
@@ -23,11 +25,17 @@ interface IAccessControlsLike {
 
 }
 
-interface ILegacyMainnetControllerLike {
+interface IRateLimitsLike {
 
-    function uniswapV4TickLimits(bytes32 poolId) external view returns (int24 tickLower, int24 tickUpper, uint24 maxTickSpacing);
+    function CONTROLLER() external view returns (bytes32);
 
-    function maxSlippages(address pool) external view returns (uint256 maxSlippage);
+    function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
+
+    function grantRole(bytes32 role, address account) external;
+
+    function revokeRole(bytes32 role, address account) external;
+
+    function setRateLimitData(bytes32 key, uint256 maxAmount, uint256 slope) external;
 
 }
 
@@ -38,12 +46,9 @@ contract ConfigureController is Script {
 
     bytes32 internal constant ALLOCATOR_ROLE = keccak256("ALLOCATOR_ROLE");
 
-    bytes32 internal constant PYUSD_USDS_POOL_ID = 0xe63e32b2ae40601662f760d6bf5d771057324fbd97784fe1d3717069f7b75d45;
-    bytes32 internal constant USDT_USDS_POOL_ID  = 0x3b1b1f2e775a6db1664f8e7d59ad568605ea2406312c11aef03146c0cf89d5b9;
-
-    IAccessControlsLike          internal accessControls;
-    IMainnetControllerFull       internal controller;
-    ILegacyMainnetControllerLike internal legacyController;
+    IAccessControlsLike internal accessControls;
+    IControllerFull     internal controller;
+    IRateLimitsLike     internal rateLimits;
 
     function run() external {
         string memory chain = vm.envOr("CHAIN", string("mainnet"));
@@ -58,8 +63,8 @@ contract ConfigureController is Script {
 
         require(block.chainid == config.readUint(".chainId"), "ConfigureController/invalid-chain-id");
 
-        controller       = IMainnetControllerFull(config.readAddress(".controller"));
-        legacyController = ILegacyMainnetControllerLike(Ethereum.ALM_CONTROLLER);
+        controller       = IControllerFull(config.readAddress(".controller"));
+        rateLimits       = IRateLimitsLike(controller.rateLimits());
         accessControls   = IAccessControlsLike(controller.accessControls());
 
         address deployer = config.readAddress(".deployer");
@@ -74,58 +79,71 @@ contract ConfigureController is Script {
 
         console2.log("Integrations updated");
 
-        // Step 2: Copy uniswapV4 pools.
-
-        _copyUniswapV4PoolConfig(PYUSD_USDS_POOL_ID);
-        _copyUniswapV4PoolConfig(USDT_USDS_POOL_ID);
-
-        console2.log("UniswapV4 pools config copied");
-
-        // Step 3: Grant ALLOCATOR_ROLE to administeredAgent.
+        // Step 2: Grant ALLOCATOR_ROLE to administeredAgent.
 
         address administeredAgent = config.readAddress(".administeredAgent");
 
         accessControls.grantRole(ALLOCATOR_ROLE, administeredAgent);
 
-        // Step 4: Transfer DEFAULT_ADMIN_ROLE to admin and revoke from deployer.
-
-        accessControls.grantRole(accessControls.DEFAULT_ADMIN_ROLE(),  Ethereum.SPARK_PROXY);
-        accessControls.revokeRole(accessControls.DEFAULT_ADMIN_ROLE(), deployer);
-
-        // Step 5: Add admins, actors and revokers to administeredAgent.
+        // Step 3: Add admins, actors and revokers to administeredAgent.
 
         IAdministeredAgent(administeredAgent).addActor(Ethereum.ALM_RELAYER_MULTISIG);
         IAdministeredAgent(administeredAgent).addActor(Ethereum.ALM_BACKSTOP_RELAYER_MULTISIG);
         IAdministeredAgent(administeredAgent).addRevoker(Ethereum.ALM_FREEZER_MULTISIG);
 
-        // Step 6: Add admin to administeredAgent and remove deployer.
+        // Step 4: Grant CONTROLLER_ROLE on rateLimits to controller.
+
+        rateLimits.grantRole(rateLimits.CONTROLLER(), address(controller));
+
+        // Step 5: Onboard Facets
+
+        _onboardCCTPFacet();
+
+        // Step 6: Transfer DEFAULT_ADMIN_ROLE on accessControls to admin and revoke from deployer.
+
+        accessControls.grantRole(accessControls.DEFAULT_ADMIN_ROLE(),  Ethereum.SPARK_PROXY);
+        accessControls.revokeRole(accessControls.DEFAULT_ADMIN_ROLE(), deployer);
+
+        // Step 7: Add admin to administeredAgent and remove deployer.
 
         IAdministeredAgent(administeredAgent).addAdmin(Ethereum.SPARK_PROXY);
         IAdministeredAgent(administeredAgent).removeAdmin(deployer);
 
-        console2.log("AccessControls and AdministeredAgent roles configured and transferred");
+        // Step 8: Transfer DEFAULT_ADMIN_ROLE on rateLimits to admin and revoke from deployer.
+
+        rateLimits.grantRole(rateLimits.DEFAULT_ADMIN_ROLE(),  Ethereum.SPARK_PROXY);
+        rateLimits.revokeRole(rateLimits.DEFAULT_ADMIN_ROLE(), deployer);
+
+        console2.log("AccessControls, AdministeredAgent and RateLimits roles configured and transferred");
 
         vm.stopBroadcast();
-    }
-
-    function _copyUniswapV4PoolConfig(bytes32 poolId) internal {
-        // Step 1: Copy max slippage.
-
-        controller.uniswapV4_setMaxSlippage(poolId, legacyController.maxSlippages(address(uint160(uint256(poolId)))));
-
-        // Step 2: Copy tick limits.
-
-        ( int24 tickLower, int24 tickUpper, uint24 maxTickSpacing ) = legacyController.uniswapV4TickLimits(poolId);
-
-        controller.uniswapV4_setTickLimits(poolId, tickLower, tickUpper, maxTickSpacing);
     }
 
     function _updateIntegrations() internal {
         bytes32[] memory integrationIds = new bytes32[](1);
 
-        integrationIds[0] = "UNISWAP_V4_FACET";
+        integrationIds[0] = "CCTP_FACET";
 
         controller.updateIntegrations(integrationIds);
+    }
+
+    function _onboardCCTPFacet() internal {
+        // Set domain parameters
+        controller.cctp_setDomainParameters(
+            CCTPv2Forwarder.DOMAIN_ID_CIRCLE_BASE,
+            recipient,
+            0,
+            100
+        );
+
+        // Set rate limits
+        rateLimits.setRateLimitData(controller.cctp_toCCTPRateLimitKey(), 100e6,0);
+
+        rateLimits.setRateLimitData(
+            controller.cctp_getToDomainRateLimitKey(CCTPv2Forwarder.DOMAIN_ID_CIRCLE_BASE),
+            100e6,
+            0
+        );
     }
 
 }

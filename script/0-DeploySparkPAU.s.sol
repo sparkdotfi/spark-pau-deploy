@@ -51,17 +51,24 @@ contract DeploySparkPAU is Script {
 
         console2.log("AccessControls deployed at: ", accessControls);
 
-        // Step 2: Deploy Controller contract.
+        // Step 2: Deploy New RateLimits contract.
+        //         Deployer as the temporary admin to run configuration script.
+
+        address rateLimits = pauFactory.deployRateLimits(deployer);
+
+        console2.log("RateLimits deployed at: ", rateLimits);
+
+        // Step 3: Deploy New Controller contract.
 
         address controller = pauFactory.deployController({
             accessControls : accessControls,
             proxy          : SparkEthereum.ALM_PROXY,
-            rateLimits     : SparkEthereum.ALM_RATE_LIMITS
+            rateLimits     : rateLimits
         });
 
         console2.log("Controller deployed at: ", controller);
 
-        // Step 3: Deploy AdministeredAgent contract.
+        // Step 4: Deploy AdministeredAgent contract.
 
         address administeredAgent = administeredAgentFactory.deploy(deployer);
 
@@ -72,6 +79,7 @@ contract DeploySparkPAU is Script {
         ScriptTools.exportContract(fileSlug, "accessControls",    address(accessControls));
         ScriptTools.exportContract(fileSlug, "administeredAgent", address(administeredAgent));
         ScriptTools.exportContract(fileSlug, "controller",        address(controller));
+        ScriptTools.exportContract(fileSlug, "rateLimits",        address(rateLimits));
     }
 
 }

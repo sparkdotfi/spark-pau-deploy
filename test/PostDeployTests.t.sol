@@ -3,15 +3,13 @@ pragma solidity ^0.8.34;
 
 import { VmSafe } from "../lib/forge-std/src/Vm.sol";
 
-import { IAccessControl }                 from "../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
-import { Initializable }                  from "../lib/diamond-pau/lib/oz-upgradeable/contracts/proxy/utils/Initializable.sol";
-import { IEnumerableIntegrations as IEI } from "../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
-import { IMainnetControllerFull }         from "../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
-
-import { IAccessControls } from "../lib/diamond-pau/src/interfaces/IAccessControls.sol";
-import { IBeacon }         from "../lib/diamond-pau/src/interfaces/IBeacon.sol";
-
-import { IUniswapV4Facet } from "../lib/diamond-pau/src/facets/uniswap-v4/IUniswapV4Facet.sol";
+import { IAccessControl }                            from "../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
+import { IAccessControls }                           from "../lib/diamond-pau/src/interfaces/IAccessControls.sol";
+import { IBeacon }                                   from "../lib/diamond-pau/src/interfaces/IBeacon.sol";
+import { Initializable }                             from "../lib/diamond-pau/lib/oz-upgradeable/contracts/proxy/utils/Initializable.sol";
+import { IEnumerableIntegrations as IEI }            from "../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
+import { IMainnetControllerFull as IControllerFull } from "../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
+import { IRateLimits }                               from "../lib/diamond-pau/src/interfaces/IRateLimits.sol";
 
 import { Ethereum as SkyEthereum }   from "../lib/sky-pau-registry/src/Ethereum.sol";
 import { Ethereum as SparkEthereum } from "../lib/spark-address-registry/src/Ethereum.sol";
@@ -20,20 +18,13 @@ import { IAdministeredAgent } from "../lib/pau-administered-agent/src/interfaces
 
 import { PostDeployTestBase } from "./PostDeployTestBase.t.sol";
 
-interface ILegacyMainnetControllerLike {
-
-    function uniswapV4TickLimits(bytes32 poolId) external view returns (int24 tickLower, int24 tickUpper, uint24 maxTickSpacing);
-
-    function maxSlippages(address pool) external view returns (uint256 maxSlippage);
-
-}
-
 contract PostDeployTests is PostDeployTestBase {
 
     // Paste from script output.
     address internal constant ACCESS_CONTROLS    = 0xD63f44D65180bCEbb1EB3D52858FbE65eE8162A3;
     address internal constant ADMINISTERED_AGENT = 0x0000000000000000000000000000000000000000;
     address internal constant CONTROLLER         = 0x0DCeDfBDb225F0D0973cf05de08c051A663F463c;
+    address internal constant RATE_LIMITS        = 0x0000000000000000000000000000000000000000;
     address internal constant DEPLOYER           = 0x1ca4ECaF0E13ca833c80dA835DEEa15e1684361d;
 
     address internal constant ADMINISTERED_AGENT_FACTORY = SkyEthereum.ADMINISTERED_AGENT_FACTORY;
@@ -45,17 +36,12 @@ contract PostDeployTests is PostDeployTestBase {
     address internal constant REVOKER            = SparkEthereum.ALM_FREEZER_MULTISIG;
     address internal constant ALM_PROXY          = SparkEthereum.ALM_PROXY;
     address internal constant BACKSTOP_ALLOCATOR = SparkEthereum.ALM_BACKSTOP_RELAYER_MULTISIG;
-    address internal constant RATE_LIMITS        = SparkEthereum.ALM_RATE_LIMITS;
-    address internal constant LEGACY_CONTROLLER  = SparkEthereum.ALM_CONTROLLER;
 
-    bytes32 internal constant PYUSD_USDS_POOL_ID = 0xe63e32b2ae40601662f760d6bf5d771057324fbd97784fe1d3717069f7b75d45;
-    bytes32 internal constant USDT_USDS_POOL_ID  = 0x3b1b1f2e775a6db1664f8e7d59ad568605ea2406312c11aef03146c0cf89d5b9;
-
-    IAccessControls              internal accessControls;
-    IAdministeredAgent           internal administeredAgent;
-    IBeacon                      internal beacon;
-    IMainnetControllerFull       internal controller;
-    ILegacyMainnetControllerLike internal legacyController;
+    IAccessControls    internal accessControls;
+    IAdministeredAgent internal administeredAgent;
+    IBeacon            internal beacon;
+    IControllerFull    internal controller;
+    IRateLimits        internal rateLimits;
 
     function setUp() public {
         vm.createSelectFork(getChain("mainnet").rpcUrl, _getBlock());
@@ -63,8 +49,8 @@ contract PostDeployTests is PostDeployTestBase {
         accessControls    = IAccessControls(ACCESS_CONTROLS);
         administeredAgent = IAdministeredAgent(ADMINISTERED_AGENT);
         beacon            = IBeacon(BEACON);
-        controller        = IMainnetControllerFull(CONTROLLER);
-        legacyController  = ILegacyMainnetControllerLike(LEGACY_CONTROLLER);
+        controller        = IControllerFull(CONTROLLER);
+        rateLimits        = IRateLimits(RATE_LIMITS);
     }
 
     function _getBlock() internal pure returns (uint256) {
@@ -72,9 +58,9 @@ contract PostDeployTests is PostDeployTestBase {
     }
 
     function test_deployState() external view {
-       /*******************************************************************************************/
-       /*** AccessControls post deploy state                                                    ***/
-       /*******************************************************************************************/
+        /******************************************************************************************/
+        /*** AccessControls post deploy state                                                   ***/
+        /******************************************************************************************/
 
         assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, ADMIN),     true);
         assertEq(accessControls.getRoleMemberCount(DEFAULT_ADMIN_ROLE), 1);
@@ -90,9 +76,24 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(accessControls.hasRole(ALLOCATOR_ROLE,     PAU_FACTORY), false);
         assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, PAU_FACTORY), false);
 
-       /*******************************************************************************************/
-       /*** Controller post deploy state                                                        ***/
-       /*******************************************************************************************/
+        /******************************************************************************************/
+        /*** RateLimits post deploy state                                                       ***/
+        /******************************************************************************************/
+
+        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, ADMIN),      true);
+        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    CONTROLLER), true);
+
+        // DEPLOYER/PAU_FACTORY has no roles on RateLimits
+
+        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    DEPLOYER), false);
+        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, DEPLOYER), false);
+
+        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    PAU_FACTORY), false);
+        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, PAU_FACTORY), false);
+
+        /******************************************************************************************/
+        /*** Controller post deploy state                                                       ***/
+        /******************************************************************************************/
 
         // Constructor initializes with the correct state.
         assertEq(controller.accessControls(), ACCESS_CONTROLS);
@@ -105,20 +106,15 @@ contract PostDeployTests is PostDeployTestBase {
         IEI.Integration[] memory integrations = controller.integrations();
 
         assertEq(integrations.length, 1);
-        assertEq(integrations[0].id,  bytes32(abi.encodePacked("UNISWAP_V4_FACET")));
+        assertEq(integrations[0].id,  bytes32(abi.encodePacked("CCTP_FACET")));
 
         for (uint256 i = 0; i < integrations.length; i++) {
             _assertIntegration(integrations[i].id);
         }
 
-        // Configurations: migrate uniswapV4 pools.
-
-        _assertUniswapV4PoolConfigCopy(PYUSD_USDS_POOL_ID);
-        _assertUniswapV4PoolConfigCopy(USDT_USDS_POOL_ID);
-
-       /*******************************************************************************************/
-       /*** AdministeredAgent post deploy state                                                 ***/
-       /*******************************************************************************************/
+        /******************************************************************************************/
+        /*** AdministeredAgent post deploy state                                                ***/
+        /******************************************************************************************/
 
         assertEq(administeredAgent.adminCount(),   1);
         assertEq(administeredAgent.actorCount(),   2);
@@ -131,9 +127,9 @@ contract PostDeployTests is PostDeployTestBase {
     }
 
     function test_postDeployEvents() external {
-       /*******************************************************************************************/
-       /*** AccessControls events                                                               ***/
-       /*******************************************************************************************/
+        /******************************************************************************************/
+        /*** AccessControls events                                                              ***/
+        /******************************************************************************************/
 
         VmSafe.EthGetLogs[] memory accessControlsAllLogs = _getEvents(block.chainid, ACCESS_CONTROLS, "");
 
@@ -165,30 +161,57 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(_toAddress(accessControlsAllLogs[3].topics[2]), DEPLOYER);
         assertEq(_toAddress(accessControlsAllLogs[3].topics[3]), DEPLOYER);
 
-       /*******************************************************************************************/
-       /*** Controller events                                                                   ***/
-       /*******************************************************************************************/
+        /******************************************************************************************/
+        /*** RateLimits events                                                                  ***/
+        /******************************************************************************************/
+
+        VmSafe.EthGetLogs[] memory rateLimitsAllLogs = _getEvents(block.chainid, RATE_LIMITS, "");
+
+        assertEq(rateLimitsAllLogs.length, 4);
+
+        // RoleGranted(DEFAULT_ADMIN_ROLE, DEPLOYER, PAU_FACTORY) from PAUFactory.deployRateLimits: RateLimits constructor.
+        assertEq(rateLimitsAllLogs[0].topics[0],             IAccessControl.RoleGranted.selector);
+        assertEq(rateLimitsAllLogs[0].topics[1],             DEFAULT_ADMIN_ROLE);
+        assertEq(_toAddress(rateLimitsAllLogs[0].topics[2]), DEPLOYER);
+        assertEq(_toAddress(rateLimitsAllLogs[0].topics[3]), PAU_FACTORY);
+
+        // RoleGranted(CONTROLLER_ROLE, CONTROLLER, DEPLOYER) from ConfigureController: CONTROLLER_ROLE grant.
+        assertEq(rateLimitsAllLogs[1].topics[0],             IAccessControl.RoleGranted.selector);
+        assertEq(rateLimitsAllLogs[1].topics[1],             CONTROLLER_ROLE);
+        assertEq(_toAddress(rateLimitsAllLogs[1].topics[2]), CONTROLLER);
+        assertEq(_toAddress(rateLimitsAllLogs[1].topics[3]), DEPLOYER);
+
+        // RoleGranted(DEFAULT_ADMIN_ROLE, ADMIN, DEPLOYER) from ConfigureController: DEFAULT_ADMIN_ROLE grant.
+        // Role transfers from deployer to admin.
+        assertEq(rateLimitsAllLogs[2].topics[0],             IAccessControl.RoleGranted.selector);
+        assertEq(rateLimitsAllLogs[2].topics[1],             DEFAULT_ADMIN_ROLE);
+        assertEq(_toAddress(rateLimitsAllLogs[2].topics[2]), ADMIN);
+        assertEq(_toAddress(rateLimitsAllLogs[2].topics[3]), DEPLOYER);
+
+        // RoleRevoked(DEFAULT_ADMIN_ROLE, DEPLOYER, DEPLOYER) from ConfigureController: DEFAULT_ADMIN_ROLE revoke.
+        // Role revoked from deployer.
+        assertEq(rateLimitsAllLogs[3].topics[0],             IAccessControl.RoleRevoked.selector);
+        assertEq(rateLimitsAllLogs[3].topics[1],             DEFAULT_ADMIN_ROLE);
+        assertEq(_toAddress(rateLimitsAllLogs[3].topics[2]), DEPLOYER);
+        assertEq(_toAddress(rateLimitsAllLogs[3].topics[3]), DEPLOYER);
+
+        /******************************************************************************************/
+        /*** Controller events                                                                  ***/
+        /******************************************************************************************/
 
         VmSafe.EthGetLogs[] memory controllerAllLogs = _getEvents(block.chainid, CONTROLLER, "");
 
-        assertEq(controllerAllLogs.length, 6);
+        assertEq(controllerAllLogs.length, 2);
 
         // Initialized(1) from Controller constructor.
         _assertInitializedEvent(controllerAllLogs[0]);
 
         // IntegrationSet(integrationId, config) from ConfigureController: updateIntegrations.
-        _assertIntegrationSetEvent(controllerAllLogs[1], bytes32(abi.encodePacked("UNISWAP_V4_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[1], bytes32(abi.encodePacked("CCTP_FACET")));
 
-        // UniswapV4 pool config copy events.
-        _assertUniswapV4MaxSlippageSetEvent(controllerAllLogs[2], PYUSD_USDS_POOL_ID);
-        _assertUniswapV4TickLimitsSetEvent(controllerAllLogs[3],  PYUSD_USDS_POOL_ID);
-
-        _assertUniswapV4MaxSlippageSetEvent(controllerAllLogs[4], USDT_USDS_POOL_ID);
-        _assertUniswapV4TickLimitsSetEvent(controllerAllLogs[5],  USDT_USDS_POOL_ID);
-
-        /*******************************************************************************************/
-        /*** AdministeredAgent events                                                            ***/
-        /*******************************************************************************************/
+        /******************************************************************************************/
+        /*** AdministeredAgent events                                                           ***/
+        /******************************************************************************************/
 
         VmSafe.EthGetLogs[] memory administeredAgentAllLogs = _getEvents(block.chainid, ADMINISTERED_AGENT, "");
 
@@ -225,9 +248,9 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(_toAddress(administeredAgentAllLogs[5].topics[2]), DEPLOYER);
     }
 
-    /*******************************************************************************************/
-    /*** Helper functions                                                                    ***/
-    /*******************************************************************************************/
+    /**********************************************************************************************/
+    /*** Helper functions                                                                       ***/
+    /**********************************************************************************************/
 
     function _assertIntegration(bytes32 integrationId) internal view {
         IEI.Config memory beaconConfig     = beacon.getConfig(integrationId);
@@ -242,22 +265,9 @@ contract PostDeployTests is PostDeployTestBase {
         }
     }
 
-    function _assertUniswapV4PoolConfigCopy(bytes32 poolId) internal view {
-        uint256 oldMaxSlippage = legacyController.maxSlippages(address(uint160(uint256(poolId))));
-
-        assertEq(controller.uniswapV4_getMaxSlippage(poolId), oldMaxSlippage);
-
-        ( int24 oldTickLower, int24 oldTickUpper, uint24 oldMaxTickSpacing ) = legacyController.uniswapV4TickLimits(poolId);
-        ( int24 newTickLower, int24 newTickUpper, uint24 newMaxTickSpacing ) = controller.uniswapV4_getTickLimits(poolId);
-
-        assertEq(newTickLower,      oldTickLower);
-        assertEq(newTickUpper,      oldTickUpper);
-        assertEq(newMaxTickSpacing, oldMaxTickSpacing);
-    }
-
-    /*******************************************************************************************/
-    /*** Event test helpers                                                                  ***/
-    /*******************************************************************************************/
+    /**********************************************************************************************/
+    /*** Event test helpers                                                                     ***/
+    /**********************************************************************************************/
 
     function _assertInitializedEvent(VmSafe.EthGetLogs memory log) internal pure {
         assertEq(log.topics[0], Initializable.Initialized.selector);
@@ -278,22 +288,6 @@ contract PostDeployTests is PostDeployTestBase {
             assertEq(controllerConfig.wires[i].callSelector,     beaconConfig.wires[i].callSelector);
             assertEq(controllerConfig.wires[i].delegateSelector, beaconConfig.wires[i].delegateSelector);
         }
-    }
-
-    function _assertUniswapV4MaxSlippageSetEvent(VmSafe.EthGetLogs memory log, bytes32 poolId) internal view {
-        uint256 oldMaxSlippage = legacyController.maxSlippages(address(uint160(uint256(poolId))));
-
-        assertEq(log.topics[0], IUniswapV4Facet.UniswapV4MaxSlippageSet.selector);
-        assertEq(log.topics[1], poolId);
-        assertEq(log.data,      abi.encode(oldMaxSlippage));
-    }
-
-    function _assertUniswapV4TickLimitsSetEvent(VmSafe.EthGetLogs memory log, bytes32 poolId) internal view {
-        ( int24 oldTickLower, int24 oldTickUpper, uint24 oldMaxTickSpacing ) = legacyController.uniswapV4TickLimits(poolId);
-
-        assertEq(log.topics[0], IUniswapV4Facet.UniswapV4TickLimitsSet.selector);
-        assertEq(log.topics[1], poolId);
-        assertEq(log.data,      abi.encode(oldTickLower, oldTickUpper, oldMaxTickSpacing));
     }
 
 }
