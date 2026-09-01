@@ -2,5 +2,6 @@
   "_info": "Spark Mainnet Production controller deployment.",
 
   "chainId": 1,
+  "admin": "0x3300f198988e4C9C63F75dF86De36421f06af8c4",
   "deployer": "0x0000000000000000000000000000000000000000"
 }

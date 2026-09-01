@@ -8,10 +8,12 @@
 #   - foundry keystore account named "deployer" (cast wallet import deployer --interactive)
 #
 # Deployment order (per chain + env):
-#   1. deploy    — deploys AccessControls and RateLimits (deployer as temporary admin on both),
-#                  Controller and AdministeredAgent
-#   2. configure — needs controller + administeredAgent pasted into
-#                  script/input/{chainId}/config-{chain}-{env}.json
+#   1. deploy    — deploys AccessControls, RateLimits (both with the `admin` from the deploy input
+#                  as admin), Controller and AdministeredAgent
+#   2. configure — staging only; needs controller + administeredAgent pasted into
+#                  script/input/{chainId}/config-mainnet-staging.json.
+#                  Production is configured by a governance spell, not by this repo, so the deploy
+#                  input for production sets `admin` to SPARK_PROXY directly.
 
 # --------------------------------------------------------------------------------------------------
 # Build & Test                                                                                     #
@@ -26,16 +28,21 @@ test:
 clean:
 	forge clean
 
-test-postdeploy-mainnet:
-	forge test --match-path "test/PostDeployTests.t.sol" -vvv
+test-postdeploy-mainnet-production:
+	forge test --match-path "test/PostProductionDeployTests.t.sol" -vvv
+
+test-postdeploy-mainnet-staging:
+	forge test --match-path "test/PostStagingDeployTests.t.sol" -vvv
 
 # --------------------------------------------------------------------------------------------------
 # Deploy: AccessControls + RateLimits + Controller + AdministeredAgent                             #
 # --------------------------------------------------------------------------------------------------
-# Deploys AccessControls, RateLimits and AdministeredAgent (with the deployer as temporary admin on
-# all three) and a Controller wired to the Sky PAU beacon and the new RateLimits plus the Spark
-# ALMProxy from spark-address-registry.
-# Input:  script/input/{chainId}/deploy-{chain}-{env}.json (chainId, deployer)
+# Deploys AccessControls, RateLimits and AdministeredAgent (with `admin` as admin on all three) and
+# a Controller wired to the Sky PAU beacon and the new RateLimits plus the Spark ALMProxy from
+# spark-address-registry.
+# For staging, `admin` is the deployer so that the configure script below can still run; for
+# production, `admin` is SPARK_PROXY.
+# Input:  script/input/{chainId}/deploy-{chain}-{env}.json (chainId, admin, deployer)
 # Output: script/output/{chainId}/deploy-{chain}-{env}-{timestamp}.json
 #         (accessControls, administeredAgent, controller, rateLimits)
 
@@ -55,18 +62,16 @@ deploy-mainnet-staging:
 # Registers the CCTP integration on the controller, grants ALLOCATOR_ROLE to the AdministeredAgent,
 # wires the relayer / backstop relayer / freezer multisigs onto the AdministeredAgent, grants the
 # CONTROLLER role on RateLimits to the controller, then hands AccessControls, the AdministeredAgent
-# and RateLimits over to SPARK_PROXY and drops the deployer.
-# RateLimits is read from controller.rateLimits(), so it needs no config entry.
-# Input: script/input/{chainId}/config-{chain}-{env}.json
-#        (chainId, administeredAgent, controller, deployer)
+# and RateLimits over to `admin` and drops the deployer.
+# RateLimits and AccessControls are read from the controller, so they need no config entry.
+# Input: script/input/{chainId}/config-mainnet-staging.json
+#        (chainId, admin, administeredAgent, controller, deployer)
 #
+# Staging only - production is configured by a governance spell.
 # Run AFTER deploy.
 # Mainnet
 
-configure-mainnet-production:
-	CHAIN=mainnet ENV=production forge script script/1-Configure.s.sol:ConfigureController \
-		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(MAINNET_RPC_URL)
-
 configure-mainnet-staging:
-	CHAIN=mainnet ENV=staging forge script script/1-Configure.s.sol:ConfigureController \
+	CHAIN=mainnet forge script \
+		script/1-ConfigureSparkPAUStaging.s.sol:ConfigureSparkPAUStaging \
 		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(MAINNET_RPC_URL)

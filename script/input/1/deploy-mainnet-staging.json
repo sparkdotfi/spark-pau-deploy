@@ -2,5 +2,6 @@
   "_info": "Spark Mainnet Staging controller deployment.",
 
   "chainId": 1,
+  "admin": "0x1ca4ECaF0E13ca833c80dA835DEEa15e1684361d",
   "deployer": "0x1ca4ECaF0E13ca833c80dA835DEEa15e1684361d"
 }

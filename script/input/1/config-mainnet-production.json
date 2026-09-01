@@ -1,9 +1,0 @@
-{
-  "_info": "Spark Mainnet Production controller configuration.",
-
-  "chainId": 1,
-
-  "administeredAgent": "0x0000000000000000000000000000000000000000",
-  "controller": "0x0000000000000000000000000000000000000000",
-  "deployer": "0x0000000000000000000000000000000000000000"
-}

@@ -38,6 +38,7 @@ contract DeploySparkPAU is Script {
         IPAUFactory                   pauFactory               = IPAUFactory(SkyEthereum.PAU_FACTORY);
         IAdministeredAgentFactoryLike administeredAgentFactory = IAdministeredAgentFactoryLike(SkyEthereum.ADMINISTERED_AGENT_FACTORY);
 
+        address admin    = config.readAddress(".admin");
         address deployer = config.readAddress(".deployer");
 
         vm.startBroadcast();
@@ -45,20 +46,18 @@ contract DeploySparkPAU is Script {
         require(msg.sender == deployer, "DeploySparkPAU/sender-not-deployer");
 
         // Step 1: Deploy AccessControls contract.
-        //         Deployer as the temporary admin to run configuration script.
 
-        address accessControls = pauFactory.deployAccessControls(deployer);
+        address accessControls = pauFactory.deployAccessControls(admin);
 
         console2.log("AccessControls deployed at: ", accessControls);
 
-        // Step 2: Deploy New RateLimits contract.
-        //         Deployer as the temporary admin to run configuration script.
+        // Step 2: Deploy RateLimits contract.
 
-        address rateLimits = pauFactory.deployRateLimits(deployer);
+        address rateLimits = pauFactory.deployRateLimits(admin);
 
         console2.log("RateLimits deployed at: ", rateLimits);
 
-        // Step 3: Deploy New Controller contract.
+        // Step 3: Deploy Controller contract with existing ALM Proxy.
 
         address controller = pauFactory.deployController({
             accessControls : accessControls,
@@ -70,7 +69,7 @@ contract DeploySparkPAU is Script {
 
         // Step 4: Deploy AdministeredAgent contract.
 
-        address administeredAgent = administeredAgentFactory.deploy(deployer);
+        address administeredAgent = administeredAgentFactory.deploy(admin);
 
         console2.log("AdministeredAgent deployed at: ", administeredAgent);
 
