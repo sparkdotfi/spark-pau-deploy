@@ -3,35 +3,7 @@
 
   "chainId": 1,
 
+  "administeredAgent": "0x0000000000000000000000000000000000000000",
   "controller": "0x0DCeDfBDb225F0D0973cf05de08c051A663F463c",
-
-  "integrationIds": {
-    "length": 24,
-    "aaveFacet": "AAVE_FACET",
-    "basinFacet": "",
-    "cctpFacet": "CCTP_FACET",
-    "centrifugeFacet": "CENTRIFUGE_FACET",
-    "curveFacet": "CURVE_FACET",
-    "daiUsdsFacet": "DAIUSDS_FACET",
-    "erc4626Facet": "ERC4626_FACET",
-    "erc7540Facet": "ERC7540_FACET",
-    "ethenaFacet": "ETHENA_FACET",
-    "farmFacet": "FARM_FACET",
-    "layerZeroFacet": "LAYER_ZERO_FACET",
-    "mapleFacet": "MAPLE_FACET",
-    "merklFacet": "MERKL_FACET",
-    "otcFacet": "OTC_FACET",
-    "pendleFacet": "PENDLE_FACET",
-    "psmFacet": "PSM_FACET",
-    "psm3Facet": "",
-    "sparkVaultFacet": "SPARK_VAULT_FACET",
-    "superstateFacet": "SUPERSTATE_FACET",
-    "transferAssetFacet": "TRANSFER_ASSET_FACET",
-    "uniswapV3Facet": "UNISWAP_V3_FACET",
-    "uniswapV4Facet": "UNISWAP_V4_FACET",
-    "usdsFacet": "USDS_FACET",
-    "weethFacet": "WEETH_FACET",
-    "wrapProxyETHFacet": "WRAP_PROXY_ETH_FACET",
-    "wstethFacet": "WSTETH_FACET"
-  }
+  "deployer": "0x1ca4ECaF0E13ca833c80dA835DEEa15e1684361d"
 }

@@ -6,10 +6,9 @@ import { VmSafe } from "../lib/forge-std/src/Vm.sol";
 
 abstract contract PostDeployTestBase is Test {
 
-    bytes32 internal constant DEFAULT_ADMIN_ROLE   = 0x00;
-    bytes32 internal constant ALLOCATOR_ROLE       = keccak256("ALLOCATOR_ROLE");
-    bytes32 internal constant ALLOCATOR_ADMIN_ROLE = keccak256("ALLOCATOR_ADMIN_ROLE");
-    bytes32 internal constant CONTROLLER_ROLE      = keccak256("CONTROLLER");
+    bytes32 internal constant DEFAULT_ADMIN_ROLE = 0x00;
+    bytes32 internal constant ALLOCATOR_ROLE     = keccak256("ALLOCATOR_ROLE");
+    bytes32 internal constant CONTROLLER_ROLE    = keccak256("CONTROLLER");
 
     /**********************************************************************************************/
     /*** Get events helpers                                                                     ***/
@@ -63,7 +62,7 @@ abstract contract PostDeployTestBase is Test {
 
         string memory response;
 
-        for (uint256 i; i < 10; i++) {
+        for (uint256 attempt; attempt < 10; attempt++) {
             response = string(vm.ffi(inputs));
 
             if (_isEqual(vm.parseJsonString(response, string(abi.encodePacked(".message"))), "NOTOK")) {
