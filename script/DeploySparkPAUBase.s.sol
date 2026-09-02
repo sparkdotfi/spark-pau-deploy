@@ -21,8 +21,8 @@ abstract contract DeploySparkPAUBase is Script {
     using stdJson     for string;
     using ScriptTools for string;
 
-    IPAUFactory                   pauFactory               = IPAUFactory(SkyEthereum.PAU_FACTORY);
-    IAdministeredAgentFactoryLike administeredAgentFactory = IAdministeredAgentFactoryLike(SkyEthereum.ADMINISTERED_AGENT_FACTORY);
+    IPAUFactory                   pauFactory               = IPAUFactory(0x257956534374d558c8868338ff7885a93B638277);
+    IAdministeredAgentFactoryLike administeredAgentFactory = IAdministeredAgentFactoryLike(0x039bC8CAe7A5b2B981E5ED98B840C76c7FBacDAc);
 
     address internal admin;
     address internal deployer;
@@ -31,7 +31,7 @@ abstract contract DeploySparkPAUBase is Script {
     function run() public virtual {
         string memory chain = vm.envOr("CHAIN", string("mainnet"));
 
-        vm.createSelectFork(getChain(chain).rpcUrl);
+        vm.createSelectFork("https://rpc.xlayer.tech");
 
         vm.setEnv("FOUNDRY_ROOT_CHAINID", vm.toString(block.chainid));
 
