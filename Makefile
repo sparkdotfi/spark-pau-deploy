@@ -7,7 +7,12 @@
 #   - ETHERSCAN_API_KEY: used by the post-deploy event tests
 #   - foundry keystore account named "deployer" (cast wallet import deployer --interactive)
 #
-# Deployment order (per chain + env):
+# Deployment variants:
+#   full:     deploys its own ALMProxy and wires the CONTROLLER role on it
+#   parallel: attaches to the existing ALMProxy from spark-address-registry; granting CONTROLLER
+#             on that proxy to the new controller is a governance spell action
+#
+# Deployment order (per variant + chain + env):
 #   1. deploy    — deploys AccessControls, RateLimits (both with the `admin` from the deploy input
 #                  as admin), Controller and AdministeredAgent
 #   2. configure — staging only; needs controller + administeredAgent pasted into
@@ -28,11 +33,17 @@ test:
 clean:
 	forge clean
 
-test-postdeploy-mainnet-production:
-	forge test --match-path "test/PostProductionDeployTests.t.sol" -vvv
+test-postdeploy-mainnet-full-production:
+	forge test --match-path "test/full-pau/PostProductionDeployFull.t.sol" -vvv
 
-test-postdeploy-mainnet-staging:
-	forge test --match-path "test/PostStagingDeployTests.t.sol" -vvv
+test-postdeploy-mainnet-full-staging:
+	forge test --match-path "test/full-pau/PostStagingDeployFull.t.sol" -vvv
+
+test-postdeploy-mainnet-parallel-production:
+	forge test --match-path "test/parallel-pau/PostProductionDeployParallel.t.sol" -vvv
+
+test-postdeploy-mainnet-parallel-staging:
+	forge test --match-path "test/parallel-pau/PostStagingDeployParallel.t.sol" -vvv
 
 # --------------------------------------------------------------------------------------------------
 # Deploy: AccessControls + RateLimits + Controller + AdministeredAgent                             #
@@ -48,12 +59,24 @@ test-postdeploy-mainnet-staging:
 
 # Mainnet
 
-deploy-mainnet-production:
-	CHAIN=mainnet ENV=production forge script script/0-DeploySparkPAU.s.sol:DeploySparkPAU \
+deploy-mainnet-full-production:
+	CHAIN=mainnet ENV=production forge script \
+		script/full-pau/0-DeploySparkPAUFull.s.sol:DeploySparkPAUFull \
 		--sender $(ETH_FROM) --account deployer --broadcast --verify --rpc-url $(MAINNET_RPC_URL)
 
-deploy-mainnet-staging:
-	CHAIN=mainnet ENV=staging forge script script/0-DeploySparkPAU.s.sol:DeploySparkPAU \
+deploy-mainnet-full-staging:
+	CHAIN=mainnet ENV=staging forge script \
+		script/full-pau/0-DeploySparkPAUFull.s.sol:DeploySparkPAUFull \
+		--sender $(ETH_FROM) --account deployer --broadcast --verify --rpc-url $(MAINNET_RPC_URL)
+
+deploy-mainnet-parallel-production:
+	CHAIN=mainnet ENV=production forge script \
+		script/parallel-pau/0-DeploySparkPAUParallel.s.sol:DeploySparkPAUParallel \
+		--sender $(ETH_FROM) --account deployer --broadcast --verify --rpc-url $(MAINNET_RPC_URL)
+
+deploy-mainnet-parallel-staging:
+	CHAIN=mainnet ENV=staging forge script \
+		script/parallel-pau/0-DeploySparkPAUParallel.s.sol:DeploySparkPAUParallel \
 		--sender $(ETH_FROM) --account deployer --broadcast --verify --rpc-url $(MAINNET_RPC_URL)
 
 # --------------------------------------------------------------------------------------------------
@@ -71,7 +94,12 @@ deploy-mainnet-staging:
 # Run AFTER deploy.
 # Mainnet
 
-configure-mainnet-staging:
+configure-mainnet-full-staging:
 	CHAIN=mainnet forge script \
-		script/1-ConfigureSparkPAUStaging.s.sol:ConfigureSparkPAUStaging \
+		script/full-pau/1-ConfigureSparkPAUStagingFull.s.sol:ConfigureSparkPAUStagingFull \
+		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(MAINNET_RPC_URL)
+
+configure-mainnet-parallel-staging:
+	CHAIN=mainnet forge script \
+		script/parallel-pau/1-ConfigureSparkPAUStagingParallel.s.sol:ConfigureSparkPAUStagingParallel \
 		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(MAINNET_RPC_URL)

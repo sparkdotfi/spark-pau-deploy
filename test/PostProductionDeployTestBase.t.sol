@@ -3,55 +3,14 @@ pragma solidity ^0.8.34;
 
 import { VmSafe } from "../lib/forge-std/src/Vm.sol";
 
-import { IAccessControl }                            from "../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
-import { IAccessControls }                           from "../lib/diamond-pau/src/interfaces/IAccessControls.sol";
-import { Initializable }                             from "../lib/diamond-pau/lib/oz-upgradeable/contracts/proxy/utils/Initializable.sol";
-import { IMainnetControllerFull as IControllerFull } from "../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
-import { IRateLimits }                               from "../lib/diamond-pau/src/interfaces/IRateLimits.sol";
-
-import { Ethereum as SkyEthereum }   from "../lib/sky-pau-registry/src/Ethereum.sol";
-import { Ethereum as SparkEthereum } from "../lib/spark-address-registry/src/Ethereum.sol";
-
 import { IAdministeredAgent } from "../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
 
 import { PostDeployTestBase } from "./PostDeployTestBase.t.sol";
 
-contract PostProductionDeployTests is PostDeployTestBase {
-
-    // Paste from script output.
-    address internal constant ACCESS_CONTROLS    = 0x0000000000000000000000000000000000000000;
-    address internal constant ADMINISTERED_AGENT = 0x0000000000000000000000000000000000000000;
-    address internal constant CONTROLLER         = 0x0000000000000000000000000000000000000000;
-    address internal constant RATE_LIMITS        = 0x0000000000000000000000000000000000000000;
-    address internal constant DEPLOYER           = 0x0000000000000000000000000000000000000000;
-
-    address internal constant ADMINISTERED_AGENT_FACTORY = SkyEthereum.ADMINISTERED_AGENT_FACTORY;
-    address internal constant BEACON                     = SkyEthereum.BEACON;
-    address internal constant PAU_FACTORY                = SkyEthereum.PAU_FACTORY;
-
-    address internal constant ADMIN              = SparkEthereum.SPARK_PROXY;
-    address internal constant ALLOCATOR          = SparkEthereum.ALM_RELAYER_MULTISIG;
-    address internal constant REVOKER            = SparkEthereum.ALM_FREEZER_MULTISIG;
-    address internal constant ALM_PROXY          = SparkEthereum.ALM_PROXY;
-    address internal constant BACKSTOP_ALLOCATOR = SparkEthereum.ALM_BACKSTOP_RELAYER_MULTISIG;
-
-    IAccessControls    internal accessControls;
-    IAdministeredAgent internal administeredAgent;
-    IControllerFull    internal controller;
-    IRateLimits        internal rateLimits;
-
-    function setUp() public {
-        vm.createSelectFork(getChain("mainnet").rpcUrl, _getBlock());
-
-        accessControls    = IAccessControls(ACCESS_CONTROLS);
-        administeredAgent = IAdministeredAgent(ADMINISTERED_AGENT);
-        controller        = IControllerFull(CONTROLLER);
-        rateLimits        = IRateLimits(RATE_LIMITS);
-    }
-
-    function _getBlock() internal pure returns (uint256) {
-        return 0; // After deploy script execution
-    }
+/// Production runs the deploy script only, with SPARK_PROXY as the admin on every component. The
+/// stack is left unconfigured: integrations, roles and rate limits are onboarded by a governance
+/// spell, so no configuration state or events are expected here.
+abstract contract PostProductionDeployTestBase is PostDeployTestBase {
 
     function test_deployState() external view {
         /******************************************************************************************/
@@ -73,6 +32,33 @@ contract PostProductionDeployTests is PostDeployTestBase {
 
         assertEq(accessControls.hasRole(ALLOCATOR_ROLE,     PAU_FACTORY), false);
         assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, PAU_FACTORY), false);
+
+        /******************************************************************************************/
+        /*** ALMProxy post deploy state                                                         ***/
+        /******************************************************************************************/
+
+        if (_isFullDeployment()) {
+            assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, ADMIN), true);
+
+            // The CONTROLLER role is granted by the governance spell, not by the deploy script.
+
+            assertEq(almProxy.hasRole(CONTROLLER_ROLE, CONTROLLER), false);
+
+            // DEPLOYER/PAU_FACTORY has no roles on the ALMProxy
+
+            assertEq(almProxy.hasRole(CONTROLLER_ROLE,    DEPLOYER), false);
+            assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, DEPLOYER), false);
+
+            assertEq(almProxy.hasRole(CONTROLLER_ROLE,    PAU_FACTORY), false);
+            assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, PAU_FACTORY), false);
+        } else {
+            // A parallel deployment attaches to the existing ALMProxy and leaves it untouched.
+
+            assertEq(controller.proxy(), EXISTING_ALM_PROXY);
+
+            // New Controller role needs to be granted by the governance spell
+            assertEq(almProxy.hasRole(CONTROLLER_ROLE, CONTROLLER), false);
+        }
 
         /******************************************************************************************/
         /*** RateLimits post deploy state                                                       ***/
@@ -135,10 +121,23 @@ contract PostProductionDeployTests is PostDeployTestBase {
         assertEq(accessControlsAllLogs.length, 1);
 
         // RoleGranted(DEFAULT_ADMIN_ROLE, ADMIN, PAU_FACTORY) from PAUFactory.deployAccessControls: AccessControls constructor.
-        assertEq(accessControlsAllLogs[0].topics[0],             IAccessControl.RoleGranted.selector);
-        assertEq(accessControlsAllLogs[0].topics[1],             DEFAULT_ADMIN_ROLE);
-        assertEq(_toAddress(accessControlsAllLogs[0].topics[2]), ADMIN);
-        assertEq(_toAddress(accessControlsAllLogs[0].topics[3]), PAU_FACTORY);
+        _assertRoleGrantedEvent(accessControlsAllLogs[0], DEFAULT_ADMIN_ROLE, ADMIN, PAU_FACTORY);
+
+        /******************************************************************************************/
+        /*** ALMProxy events                                                                    ***/
+        /******************************************************************************************/
+
+        // A parallel deployment attaches to the existing ALMProxy, which carries unrelated history,
+        // so only a full deployment can assert on its complete log set.
+
+        if (_isFullDeployment()) {
+            VmSafe.EthGetLogs[] memory almProxyAllLogs = _getEvents(block.chainid, ALM_PROXY, "");
+
+            assertEq(almProxyAllLogs.length, 1);
+
+            // RoleGranted(DEFAULT_ADMIN_ROLE, ADMIN, PAU_FACTORY) from PAUFactory.deployALMProxy: ALMProxy constructor.
+            _assertRoleGrantedEvent(almProxyAllLogs[0], DEFAULT_ADMIN_ROLE, ADMIN, PAU_FACTORY);
+        }
 
         /******************************************************************************************/
         /*** RateLimits events                                                                  ***/
@@ -149,10 +148,7 @@ contract PostProductionDeployTests is PostDeployTestBase {
         assertEq(rateLimitsAllLogs.length, 1);
 
         // RoleGranted(DEFAULT_ADMIN_ROLE, ADMIN, PAU_FACTORY) from PAUFactory.deployRateLimits: RateLimits constructor.
-        assertEq(rateLimitsAllLogs[0].topics[0],             IAccessControl.RoleGranted.selector);
-        assertEq(rateLimitsAllLogs[0].topics[1],             DEFAULT_ADMIN_ROLE);
-        assertEq(_toAddress(rateLimitsAllLogs[0].topics[2]), ADMIN);
-        assertEq(_toAddress(rateLimitsAllLogs[0].topics[3]), PAU_FACTORY);
+        _assertRoleGrantedEvent(rateLimitsAllLogs[0], DEFAULT_ADMIN_ROLE, ADMIN, PAU_FACTORY);
 
         /******************************************************************************************/
         /*** Controller events                                                                  ***/
@@ -177,15 +173,6 @@ contract PostProductionDeployTests is PostDeployTestBase {
         assertEq(administeredAgentAllLogs[0].topics[0],             IAdministeredAgent.AdminAdded.selector);
         assertEq(_toAddress(administeredAgentAllLogs[0].topics[1]), ADMIN);
         assertEq(_toAddress(administeredAgentAllLogs[0].topics[2]), ADMINISTERED_AGENT_FACTORY);
-    }
-
-    /**********************************************************************************************/
-    /*** Event test helpers                                                                     ***/
-    /**********************************************************************************************/
-
-    function _assertInitializedEvent(VmSafe.EthGetLogs memory log) internal pure {
-        assertEq(log.topics[0], Initializable.Initialized.selector);
-        assertEq(log.data,      abi.encode(1));
     }
 
 }

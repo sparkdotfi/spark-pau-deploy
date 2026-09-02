@@ -25,4 +25,23 @@ contract ConfigureSparkPAUStagingParallel is ConfigureSparkPAUStagingBase {
         _onboardCCTPFacet();
     }
 
+    function _onboardCCTPFacet() internal {
+        // Set domain parameters
+        controller.cctp_setDomainParameters(
+            CCTPv2Forwarder.DOMAIN_ID_CIRCLE_BASE,
+            bytes32(uint256(uint160(Base.ALM_PROXY))),
+            0,
+            100
+        );
+
+        // Set rate limits
+        rateLimits.setRateLimitData(controller.cctp_toCCTPRateLimitKey(), 10e6, 0);
+
+        rateLimits.setRateLimitData(
+            controller.cctp_getToDomainRateLimitKey(CCTPv2Forwarder.DOMAIN_ID_CIRCLE_BASE),
+            10e6,
+            0
+        );
+    }
+
 }

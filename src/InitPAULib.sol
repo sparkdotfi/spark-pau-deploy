@@ -33,7 +33,7 @@ interface IControllerLike {
 
     function accessControls() external view returns (address);
 
-    function almProxy() external view returns (address);
+    function proxy() external view returns (address);
 
     function rateLimits() external view returns (address);
 
@@ -73,7 +73,7 @@ library InitPAULib {
      * @notice Emitted when the PAU stack is initialized.
      * @param  controller     Address of the Controller contract.
      * @param  accessControls Address of the AccessControls contract.
-     * @param  almProxy       Address of the ALMProxy contract.
+     * @param  proxy          Address of the Proxy contract.
      * @param  rateLimits     Address of the RateLimits contract.
      * @param  integrationIds IDs of the integrations to update.
      * @param  adminConfig    Configuration for the admins of the deployed PAU stack components.
@@ -82,7 +82,7 @@ library InitPAULib {
     event InitPAU(
         address                   indexed controller,
         address                           accessControls,
-        address                           almProxy,
+        address                           proxy,
         address                           rateLimits,
         bytes32[]                         integrationIds,
         AdminConfig                       adminConfig,
@@ -96,12 +96,12 @@ library InitPAULib {
     /**
      * @notice Admins to be granted admin rights on each component of the deployed stack.
      * @param  accessControlAdmins Admins for the AccessControls contract.
-     * @param  almProxyAdmins      Admins for the ALMProxy contract.
+     * @param  proxyAdmins         Admins for the Proxy contract.
      * @param  rateLimitsAdmins    Admins for the RateLimits contract.
      */
     struct AdminConfig {
         address[] accessControlAdmins;
-        address[] almProxyAdmins;
+        address[] proxyAdmins;
         address[] rateLimitsAdmins;
     }
 
@@ -148,7 +148,7 @@ library InitPAULib {
         AdministeredAgentConfig[] memory agentConfigs
     ) internal {
         address accessControls = IControllerLike(controller).accessControls();
-        address almProxy       = IControllerLike(controller).almProxy();
+        address proxy          = IControllerLike(controller).proxy();
         address rateLimits     = IControllerLike(controller).rateLimits();
 
         // Step 1: Config AdministeredAgents
@@ -159,7 +159,7 @@ library InitPAULib {
 
         // Step 2: Configure all Roles
 
-        _grantRoles(isFullDeployment, accessControls, almProxy, controller, rateLimits, adminConfig, agentConfigs);
+        _grantRoles(isFullDeployment, accessControls, proxy, controller, rateLimits, adminConfig, agentConfigs);
 
         // Step 3: Update integrations
 
@@ -170,7 +170,7 @@ library InitPAULib {
         emit InitPAU(
             controller,
             accessControls,
-            almProxy,
+            proxy,
             rateLimits,
             integrationIds,
             adminConfig,
@@ -217,7 +217,7 @@ library InitPAULib {
     function _grantRoles(
         bool                             isFullDeployment,
         address                          accessControls,
-        address                          almProxy,
+        address                          proxy,
         address                          controller,
         address                          rateLimits,
         AdminConfig               memory adminConfig,
@@ -234,9 +234,9 @@ library InitPAULib {
         // ALMProxy Roles (if full deployment)
 
         if (isFullDeployment) {
-            _grantDefaultAdmins(almProxy, adminConfig.almProxyAdmins);
+            _grantDefaultAdmins(proxy, adminConfig.proxyAdmins);
 
-            IAccessControlLike(almProxy).grantRole(IALMProxyLike(almProxy).CONTROLLER(), controller);
+            IAccessControlLike(proxy).grantRole(IALMProxyLike(proxy).CONTROLLER(), controller);
         }
 
         // RateLimits Roles

@@ -50,7 +50,7 @@ interface IRateLimitsLike {
 
 /// This script is meant to be overridden by the child contract to configure the PAU stack.
 /// It will configure the PAU stack with a full deployment by default.
-contract ConfigureSparkPAUStagingBase is Script {
+abstract contract ConfigureSparkPAUStagingBase is Script {
 
     using stdJson     for string;
     using ScriptTools for string;
@@ -77,6 +77,7 @@ contract ConfigureSparkPAUStagingBase is Script {
         require(block.chainid == config.readUint(".chainId"), "ConfigureSparkPAUStagingBase/invalid-chain-id");
 
         controller        = IControllerFull(config.readAddress(".controller"));
+        almProxy          = IALMProxyLike(controller.proxy());
         rateLimits        = IRateLimitsLike(controller.rateLimits());
         accessControls    = IAccessControlsLike(controller.accessControls());
         administeredAgent = IAdministeredAgentLike(config.readAddress(".administeredAgent"));
@@ -133,6 +134,12 @@ contract ConfigureSparkPAUStagingBase is Script {
         accessControlAdmins[0] = admin;
         almProxyAdmins[0]      = admin;
         rateLimitsAdmins[0]    = admin;
+
+        adminConfig = InitPAULib.AdminConfig({
+            accessControlAdmins : accessControlAdmins,
+            proxyAdmins         : proxyAdmins,
+            rateLimitsAdmins    : rateLimitsAdmins
+        });
     }
 
     function _getAgentConfigs() internal virtual returns (InitPAULib.AdministeredAgentConfig[] memory agentConfigs) {
@@ -159,29 +166,11 @@ contract ConfigureSparkPAUStagingBase is Script {
 
     function _removeDeployerAsAdmin() internal {
         accessControls.revokeRole(accessControls.DEFAULT_ADMIN_ROLE(), deployer);
-        almProxy.revokeRole(almProxy.DEFAULT_ADMIN_ROLE(),             deployer); // Revoking in parallel deployment is a no-op so its safe to call revokeRole
         rateLimits.revokeRole(rateLimits.DEFAULT_ADMIN_ROLE(),         deployer);
 
         administeredAgent.removeAdmin(deployer);
-    }
 
-    function _onboardCCTPFacet() internal {
-        // Set domain parameters
-        controller.cctp_setDomainParameters(
-            CCTPv2Forwarder.DOMAIN_ID_CIRCLE_BASE,
-            bytes32(uint256(uint160(Base.ALM_PROXY))),
-            0,
-            100
-        );
-
-        // Set rate limits
-        rateLimits.setRateLimitData(controller.cctp_toCCTPRateLimitKey(), 10e6, 0);
-
-        rateLimits.setRateLimitData(
-            controller.cctp_getToDomainRateLimitKey(CCTPv2Forwarder.DOMAIN_ID_CIRCLE_BASE),
-            10e6,
-            0
-        );
+        if (isFullDeployment()) almProxy.revokeRole(almProxy.DEFAULT_ADMIN_ROLE(), deployer); // Revoking possible only in full deployment
     }
 
 }

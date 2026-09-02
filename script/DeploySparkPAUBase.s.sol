@@ -60,11 +60,11 @@ abstract contract DeploySparkPAUBase is Script {
 
         vm.stopBroadcast();
 
-        if (accessControls    != address(0)) ScriptTools.exportContract(fileSlug, "accessControls",    address(accessControls));
-        if (proxy             != address(0)) ScriptTools.exportContract(fileSlug, "almProxy",          address(proxy));
-        if (rateLimits        != address(0)) ScriptTools.exportContract(fileSlug, "rateLimits",        address(rateLimits));
-        if (controller        != address(0)) ScriptTools.exportContract(fileSlug, "controller",        address(controller));
-        if (administeredAgent != address(0)) ScriptTools.exportContract(fileSlug, "administeredAgent", address(administeredAgent));
+        ScriptTools.exportContract(fileSlug, "accessControls",    address(accessControls));
+        ScriptTools.exportContract(fileSlug, "almProxy",          address(proxy));
+        ScriptTools.exportContract(fileSlug, "rateLimits",        address(rateLimits));
+        ScriptTools.exportContract(fileSlug, "controller",        address(controller));
+        ScriptTools.exportContract(fileSlug, "administeredAgent", address(administeredAgent));
     }
 
     function _deployAccessControls() internal virtual returns (address accessControls) {
