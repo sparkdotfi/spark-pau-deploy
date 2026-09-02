@@ -24,12 +24,11 @@ contract PostProductionDeployParallel is PostProductionDeployTestBase {
         CONTROLLER         = 0x0000000000000000000000000000000000000000;
         RATE_LIMITS        = 0x0000000000000000000000000000000000000000;
 
-        // A parallel deployment attaches to the existing ALMProxy.
-        ALM_PROXY = EXISTING_ALM_PROXY;
-
-        // Paste from script/input/1/deploy-mainnet-production.json.
-        ADMIN    = SparkEthereum.SPARK_PROXY;
-        DEPLOYER = 0x0000000000000000000000000000000000000000;
+        // Paste from script/input/1/deploy-mainnet-production.json. A parallel deployment attaches
+        // to the ALMProxy named there, which is the existing Spark ALMProxy.
+        ADMIN     = SparkEthereum.SPARK_PROXY;
+        ALM_PROXY = SparkEthereum.ALM_PROXY;
+        DEPLOYER  = 0x0000000000000000000000000000000000000000;
     }
 
 }

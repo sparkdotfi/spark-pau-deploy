@@ -12,8 +12,7 @@ import { Initializable }                             from "../lib/diamond-pau/li
 import { IMainnetControllerFull as IControllerFull } from "../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
 import { IRateLimits }                               from "../lib/diamond-pau/src/interfaces/IRateLimits.sol";
 
-import { Ethereum as SkyEthereum }   from "../lib/sky-pau-registry/src/Ethereum.sol";
-import { Ethereum as SparkEthereum } from "../lib/spark-address-registry/src/Ethereum.sol";
+import { Ethereum as SkyEthereum } from "../lib/sky-pau-registry/src/Ethereum.sol";
 
 import { IAdministeredAgent } from "../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
 
@@ -27,14 +26,8 @@ abstract contract PostDeployTestBase is Test {
     address internal constant BEACON                     = SkyEthereum.BEACON;
     address internal constant PAU_FACTORY                = SkyEthereum.PAU_FACTORY;
 
-    address internal constant ALLOCATOR          = SparkEthereum.ALM_RELAYER_MULTISIG;
-    address internal constant BACKSTOP_ALLOCATOR = SparkEthereum.ALM_BACKSTOP_RELAYER_MULTISIG;
-    address internal constant REVOKER            = SparkEthereum.ALM_FREEZER_MULTISIG;
-
-    // The ALMProxy a parallel deployment attaches to, instead of deploying its own.
-    address internal constant EXISTING_ALM_PROXY = SparkEthereum.ALM_PROXY;
-
     // Deployment specific addresses, assigned by _setDeploymentAddresses in the inheriting test.
+    // ADMIN and DEPLOYER come from the script inputs, the rest from the script output.
     address internal ACCESS_CONTROLS;
     address internal ADMIN;
     address internal ADMINISTERED_AGENT;
@@ -53,7 +46,7 @@ abstract contract PostDeployTestBase is Test {
     function setUp() public virtual {
         _setDeploymentAddresses();
 
-        vm.createSelectFork(getChain("mainnet").rpcUrl, _getBlock());
+        vm.createSelectFork(getChain(_getChain()).rpcUrl, _getBlock());
 
         accessControls    = IAccessControls(ACCESS_CONTROLS);
         administeredAgent = IAdministeredAgent(ADMINISTERED_AGENT);
@@ -69,6 +62,11 @@ abstract contract PostDeployTestBase is Test {
 
     /// @dev Block to fork at, after the deployment scripts have been executed.
     function _getBlock() internal pure virtual returns (uint256);
+
+    /// @dev Chain the deployment scripts were run against, as passed to them in CHAIN.
+    function _getChain() internal pure virtual returns (string memory) {
+        return "mainnet";
+    }
 
     /// @dev True when the deployment brought up its own ALMProxy, false when it attached to the
     ///      existing one. Only the ALMProxy assertions differ between the two.

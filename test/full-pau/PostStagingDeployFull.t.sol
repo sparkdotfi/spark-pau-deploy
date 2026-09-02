@@ -25,7 +25,9 @@ contract PostStagingDeployFull is PostStagingDeployTestBase {
 
         // Paste from script/input/1/config-mainnet-staging.json.
         ADMIN    = 0xb52991d5d29f371f493910c36f5A849b3748Cc28;
-        DEPLOYER = 0x1ca4ECaF0E13ca833c80dA835DEEa15e1684361d;
+        DEPLOYER = 0x0000000000000000000000000000000000000000;
+        FREEZER  = 0x611C7c37F296240c2fF5a92f0B4a398B01B237c4;
+        RELAYER  = 0x611C7c37F296240c2fF5a92f0B4a398B01B237c4;
     }
 
 }

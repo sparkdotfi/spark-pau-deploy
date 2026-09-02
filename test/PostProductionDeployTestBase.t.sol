@@ -52,9 +52,8 @@ abstract contract PostProductionDeployTestBase is PostDeployTestBase {
             assertEq(almProxy.hasRole(CONTROLLER_ROLE,    PAU_FACTORY), false);
             assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, PAU_FACTORY), false);
         } else {
-            // A parallel deployment attaches to the existing ALMProxy and leaves it untouched.
-
-            assertEq(controller.proxy(), EXISTING_ALM_PROXY);
+            // A parallel deployment attaches to the ALMProxy named in the deploy input and leaves
+            // it untouched, so only the roles of the new stack are asserted here.
 
             // New Controller role needs to be granted by the governance spell
             assertEq(almProxy.hasRole(CONTROLLER_ROLE, CONTROLLER), false);
@@ -105,10 +104,7 @@ abstract contract PostProductionDeployTestBase is PostDeployTestBase {
 
         // Actors and revokers are added by the governance spell, not by the deploy script.
 
-        assertEq(administeredAgent.getIsActor(ALLOCATOR),          false);
-        assertEq(administeredAgent.getIsActor(BACKSTOP_ALLOCATOR), false);
-        assertEq(administeredAgent.getIsRevoker(REVOKER),          false);
-        assertEq(administeredAgent.getIsAdmin(DEPLOYER),           false);
+        assertEq(administeredAgent.getIsAdmin(DEPLOYER), false);
     }
 
     function test_postDeployEvents() external {

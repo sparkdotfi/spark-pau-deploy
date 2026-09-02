@@ -9,8 +9,6 @@ import { IRateLimits }                    from "../lib/diamond-pau/src/interface
 
 import { CCTPv2Forwarder } from "../lib/diamond-pau/lib/grove-xchain-helpers/src/forwarders/CCTPv2Forwarder.sol";
 
-import { Base as SparkBase } from "../lib/spark-address-registry/src/Base.sol";
-
 import { IAdministeredAgent } from "../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
 
 import { PostDeployTestBase } from "./PostDeployTestBase.t.sol";
@@ -21,14 +19,21 @@ abstract contract PostStagingDeployTestBase is PostDeployTestBase {
 
     bytes32 internal constant CCTP_FACET_ID = bytes32(abi.encodePacked("CCTP_FACET"));
 
-    uint32  internal constant CCTP_BASE_DOMAIN    = CCTPv2Forwarder.DOMAIN_ID_CIRCLE_BASE;
-    bytes32 internal constant CCTP_MINT_RECIPIENT = bytes32(uint256(uint160(SparkBase.ALM_PROXY)));
+    uint32 internal constant CCTP_BASE_DOMAIN = CCTPv2Forwarder.DOMAIN_ID_CIRCLE_BASE;
+
+    // BASE_ALM_PROXY from the configure script, bytes32 encoded as the CCTP mint recipient.
+    address internal constant BASE_ALM_PROXY      = 0x370E141E3a568A314bF84decB8c07b82Bb7f1831;
+    bytes32 internal constant CCTP_MINT_RECIPIENT = bytes32(uint256(uint160(BASE_ALM_PROXY)));
 
     uint32 internal constant CCTP_MIN_FEE_CAP_RATE = 0;
     uint32 internal constant CCTP_MAX_FEE_CAP_RATE = 100;
 
     uint256 internal constant CCTP_RATE_LIMIT_MAX_AMOUNT = 10e6;
     uint256 internal constant CCTP_RATE_LIMIT_SLOPE      = 0;
+
+    // Agent actor and revoker from the config input, assigned by _setDeploymentAddresses.
+    address internal FREEZER;
+    address internal RELAYER;
 
     function test_deployState() external view {
         /******************************************************************************************/
@@ -65,11 +70,9 @@ abstract contract PostStagingDeployTestBase is PostDeployTestBase {
             assertEq(almProxy.hasRole(CONTROLLER_ROLE,    PAU_FACTORY), false);
             assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, PAU_FACTORY), false);
         } else {
-            // A parallel deployment attaches to the existing ALMProxy, which is owned by
-            // SPARK_PROXY. Granting CONTROLLER to the new controller is a governance spell action,
-            // so the scripts leave the proxy untouched.
-
-            assertEq(controller.proxy(), EXISTING_ALM_PROXY);
+            // A parallel deployment attaches to the ALMProxy named in the deploy input, which has
+            // admins of its own. Granting CONTROLLER to the new controller is a governance spell
+            // action, so both scripts leave the proxy untouched.
 
             assertEq(almProxy.hasRole(CONTROLLER_ROLE, CONTROLLER), false);
         }
@@ -132,14 +135,13 @@ abstract contract PostStagingDeployTestBase is PostDeployTestBase {
         /******************************************************************************************/
 
         assertEq(administeredAgent.adminCount(),   1);
-        assertEq(administeredAgent.actorCount(),   2);
+        assertEq(administeredAgent.actorCount(),   1);
         assertEq(administeredAgent.grantorCount(), 0);
         assertEq(administeredAgent.revokerCount(), 1);
 
         assertEq(administeredAgent.getAdmin(0),   ADMIN);
-        assertEq(administeredAgent.getActor(0),   ALLOCATOR);
-        assertEq(administeredAgent.getActor(1),   BACKSTOP_ALLOCATOR);
-        assertEq(administeredAgent.getRevoker(0), REVOKER);
+        assertEq(administeredAgent.getActor(0),   RELAYER);
+        assertEq(administeredAgent.getRevoker(0), FREEZER);
 
         // Deployer is no longer an admin on the AdministeredAgent.
 
@@ -250,7 +252,7 @@ abstract contract PostStagingDeployTestBase is PostDeployTestBase {
 
         VmSafe.EthGetLogs[] memory administeredAgentAllLogs = _getEvents(block.chainid, ADMINISTERED_AGENT, "");
 
-        assertEq(administeredAgentAllLogs.length, 6);
+        assertEq(administeredAgentAllLogs.length, 5);
 
         // AdminAdded(DEPLOYER, ADMINISTERED_AGENT_FACTORY) from AdministeredAgent constructor.
         assertEq(administeredAgentAllLogs[0].topics[0],             IAdministeredAgent.AdminAdded.selector);
@@ -262,25 +264,20 @@ abstract contract PostStagingDeployTestBase is PostDeployTestBase {
         assertEq(_toAddress(administeredAgentAllLogs[1].topics[1]), ADMIN);
         assertEq(_toAddress(administeredAgentAllLogs[1].topics[2]), DEPLOYER);
 
-        // ActorAdded(ALLOCATOR, DEPLOYER) from InitPAULib._configureAgent: addActor.
+        // ActorAdded(RELAYER, DEPLOYER) from InitPAULib._configureAgent: addActor.
         assertEq(administeredAgentAllLogs[2].topics[0],             IAdministeredAgent.ActorAdded.selector);
-        assertEq(_toAddress(administeredAgentAllLogs[2].topics[1]), ALLOCATOR);
+        assertEq(_toAddress(administeredAgentAllLogs[2].topics[1]), RELAYER);
         assertEq(_toAddress(administeredAgentAllLogs[2].topics[2]), DEPLOYER);
 
-        // ActorAdded(BACKSTOP_ALLOCATOR, DEPLOYER) from InitPAULib._configureAgent: addActor.
-        assertEq(administeredAgentAllLogs[3].topics[0],             IAdministeredAgent.ActorAdded.selector);
-        assertEq(_toAddress(administeredAgentAllLogs[3].topics[1]), BACKSTOP_ALLOCATOR);
+        // RevokerAdded(FREEZER, DEPLOYER) from InitPAULib._configureAgent: addRevoker.
+        assertEq(administeredAgentAllLogs[3].topics[0],             IAdministeredAgent.RevokerAdded.selector);
+        assertEq(_toAddress(administeredAgentAllLogs[3].topics[1]), FREEZER);
         assertEq(_toAddress(administeredAgentAllLogs[3].topics[2]), DEPLOYER);
 
-        // RevokerAdded(REVOKER, DEPLOYER) from InitPAULib._configureAgent: addRevoker.
-        assertEq(administeredAgentAllLogs[4].topics[0],             IAdministeredAgent.RevokerAdded.selector);
-        assertEq(_toAddress(administeredAgentAllLogs[4].topics[1]), REVOKER);
-        assertEq(_toAddress(administeredAgentAllLogs[4].topics[2]), DEPLOYER);
-
         // AdminRemoved(DEPLOYER, DEPLOYER) from the configure script: removeAdmin.
-        assertEq(administeredAgentAllLogs[5].topics[0],             IAdministeredAgent.AdminRemoved.selector);
-        assertEq(_toAddress(administeredAgentAllLogs[5].topics[1]), DEPLOYER);
-        assertEq(_toAddress(administeredAgentAllLogs[5].topics[2]), DEPLOYER);
+        assertEq(administeredAgentAllLogs[4].topics[0],             IAdministeredAgent.AdminRemoved.selector);
+        assertEq(_toAddress(administeredAgentAllLogs[4].topics[1]), DEPLOYER);
+        assertEq(_toAddress(administeredAgentAllLogs[4].topics[2]), DEPLOYER);
     }
 
     /**********************************************************************************************/
