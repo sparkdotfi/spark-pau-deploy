@@ -1,0 +1,8 @@
+{
+  "_info": "Spark XLayer Staging controller deployment.",
+
+  "chainId": 196,
+  "admin": "0xb52991d5d29f371f493910c36f5A849b3748Cc28",
+  "deployer": "0x0000000000000000000000000000000000000000",
+  "almProxy": "0x0000000000000000000000000000000000000000"
+}

@@ -5,12 +5,7 @@ import { Script, stdJson } from "../lib/forge-std/src/Script.sol";
 
 import { console2 } from "../lib/forge-std/src/console2.sol";
 
-import { CCTPv2Forwarder } from "../lib/diamond-pau/lib/grove-xchain-helpers/src/forwarders/CCTPv2Forwarder.sol";
-
 import { ScriptTools } from "../lib/dss-test/src/ScriptTools.sol";
-
-import { Base }     from "../lib/spark-address-registry/src/Base.sol";
-import { Ethereum } from "../lib/spark-address-registry/src/Ethereum.sol";
 
 import { IMainnetControllerFull as IControllerFull } from "../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
 
@@ -63,6 +58,8 @@ abstract contract ConfigureSparkPAUStagingBase is Script {
 
     address internal admin;
     address internal deployer;
+    address internal relayer;
+    address internal freezer;
 
     function run() public virtual {
         string memory chain = vm.envOr("CHAIN", string("mainnet"));
@@ -84,6 +81,8 @@ abstract contract ConfigureSparkPAUStagingBase is Script {
 
         admin    = config.readAddress(".admin");
         deployer = config.readAddress(".deployer");
+        relayer  = config.readAddress(".relayer");
+        freezer  = config.readAddress(".freezer");
 
         require(admin != deployer, "ConfigureSparkPAUStagingBase/admin-is-deployer");
 
@@ -137,21 +136,20 @@ abstract contract ConfigureSparkPAUStagingBase is Script {
 
         adminConfig = InitPAULib.AdminConfig({
             accessControlAdmins : accessControlAdmins,
-            proxyAdmins         : proxyAdmins,
+            proxyAdmins         : almProxyAdmins,
             rateLimitsAdmins    : rateLimitsAdmins
         });
     }
 
     function _getAgentConfigs() internal virtual returns (InitPAULib.AdministeredAgentConfig[] memory agentConfigs) {
         address[] memory agentAdmins   = new address[](1);
-        address[] memory agentActors   = new address[](2);
+        address[] memory agentActors   = new address[](1);
         address[] memory agentGrantors = new address[](0);
         address[] memory agentRevokers = new address[](1);
 
         agentAdmins[0]   = admin;
-        agentActors[0]   = Ethereum.ALM_RELAYER_MULTISIG;
-        agentActors[1]   = Ethereum.ALM_BACKSTOP_RELAYER_MULTISIG;
-        agentRevokers[0] = Ethereum.ALM_FREEZER_MULTISIG;
+        agentActors[0]   = relayer;
+        agentRevokers[0] = freezer;
 
         agentConfigs = new InitPAULib.AdministeredAgentConfig[](1);
 
@@ -170,7 +168,7 @@ abstract contract ConfigureSparkPAUStagingBase is Script {
 
         administeredAgent.removeAdmin(deployer);
 
-        if (isFullDeployment()) almProxy.revokeRole(almProxy.DEFAULT_ADMIN_ROLE(), deployer); // Revoking possible only in full deployment
+        if (_isFullDeployment()) almProxy.revokeRole(almProxy.DEFAULT_ADMIN_ROLE(), deployer); // Revoking possible only in full deployment
     }
 
 }

@@ -2,6 +2,7 @@
   "_info": "Spark Mainnet Staging controller deployment.",
 
   "chainId": 1,
-  "admin": "0x1ca4ECaF0E13ca833c80dA835DEEa15e1684361d",
-  "deployer": "0x1ca4ECaF0E13ca833c80dA835DEEa15e1684361d"
+  "admin": "0x0000000000000000000000000000000000000000",
+  "deployer": "0x0000000000000000000000000000000000000000",
+  "almProxy": "0xe6A3179615cA28abd2d0a0d83bAAC21B24Ff7fFF"
 }

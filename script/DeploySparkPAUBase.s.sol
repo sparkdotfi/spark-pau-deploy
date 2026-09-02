@@ -26,6 +26,7 @@ abstract contract DeploySparkPAUBase is Script {
 
     address internal admin;
     address internal deployer;
+    address internal almProxy;
 
     function run() public virtual {
         string memory chain = vm.envOr("CHAIN", string("mainnet"));
@@ -42,6 +43,7 @@ abstract contract DeploySparkPAUBase is Script {
 
         admin    = config.readAddress(".admin");
         deployer = config.readAddress(".deployer");
+        almProxy = config.readAddress(".almProxy");
 
         vm.startBroadcast();
 
@@ -73,11 +75,7 @@ abstract contract DeploySparkPAUBase is Script {
         console2.log("AccessControls deployed at: ", accessControls);
     }
 
-    function _deployALMProxy() internal virtual returns (address proxy) {
-        proxy = pauFactory.deployALMProxy(admin);
-
-        console2.log("ALMProxy deployed at: ", proxy);
-    }
+    function _deployALMProxy() internal virtual returns (address proxy) { }
 
     function _deployRateLimits() internal virtual returns (address rateLimits) {
         rateLimits = pauFactory.deployRateLimits(admin);

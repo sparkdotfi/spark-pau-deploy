@@ -1,12 +1,12 @@
 {
-  "_info": "Spark Mainnet Staging controller configuration.",
+  "_info": "Spark XLayer Staging controller configuration.",
 
-  "chainId": 1,
+  "chainId": 196,
 
   "admin": "0xb52991d5d29f371f493910c36f5A849b3748Cc28",
   "administeredAgent": "0x0000000000000000000000000000000000000000",
   "controller": "0x0000000000000000000000000000000000000000",
-  "relayer": "0x611C7c37F296240c2fF5a92f0B4a398B01B237c4",
-  "freezer": "0x611C7c37F296240c2fF5a92f0B4a398B01B237c4",
+  "relayer": "0xE4FB2B5B40EE539f5b9551cf699674d3082eD39b",
+  "freezer": "0xE4FB2B5B40EE539f5b9551cf699674d3082eD39b",
   "deployer": "0x0000000000000000000000000000000000000000"
 }

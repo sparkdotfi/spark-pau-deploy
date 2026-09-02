@@ -12,7 +12,7 @@ contract DeploySparkPAUParallel is DeploySparkPAUBase {
     }
 
     function _deployALMProxy() internal override returns (address proxy) {
-        proxy = SparkEthereum.ALM_PROXY;
+        proxy = almProxy;
     }
 
 }

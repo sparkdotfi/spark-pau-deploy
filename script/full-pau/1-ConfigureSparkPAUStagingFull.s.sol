@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.34;
 
+import { CCTPv2Forwarder } from "../../lib/diamond-pau/lib/grove-xchain-helpers/src/forwarders/CCTPv2Forwarder.sol";
+
 import { ConfigureSparkPAUStagingBase } from "../ConfigureSparkPAUStagingBase.s.sol";
 
 contract ConfigureSparkPAUStagingFull is ConfigureSparkPAUStagingBase {
+
+    address internal constant BASE_ALM_PROXY = 0x370E141E3a568A314bF84decB8c07b82Bb7f1831;
 
     function run() public override {
         super.run();
@@ -29,7 +33,7 @@ contract ConfigureSparkPAUStagingFull is ConfigureSparkPAUStagingBase {
         // Set domain parameters
         controller.cctp_setDomainParameters(
             CCTPv2Forwarder.DOMAIN_ID_CIRCLE_BASE,
-            bytes32(uint256(uint160(Base.ALM_PROXY))),
+            bytes32(uint256(uint160(BASE_ALM_PROXY))),
             0,
             100
         );
