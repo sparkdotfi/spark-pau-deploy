@@ -41,7 +41,7 @@ abstract contract DeploySparkPAUBase is Script {
 
         string memory chain = vm.envOr("CHAIN", string("mainnet"));
 
-        vm.createSelectFork("https://rpc.xlayer.tech");
+        vm.createSelectFork(getChain(chain).rpcUrl);
 
         vm.setEnv("FOUNDRY_ROOT_CHAINID", vm.toString(block.chainid));
 
