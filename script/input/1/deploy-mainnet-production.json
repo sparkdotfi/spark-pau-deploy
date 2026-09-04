@@ -1,7 +1,9 @@
 {
-  "_info": "Spark Mainnet Production controller deployment.",
+  "_info": "Spark Mainnet Production controller deployment. Leave ALMProxy empty for full deployment.",
 
   "chainId": 1,
+  "pauFactory": "0x0000000000000000000000000000000000000000",
+  "agentFactory": "0x0000000000000000000000000000000000000000",
   "admin": "0x3300f198988e4C9C63F75dF86De36421f06af8c4",
   "deployer": "0x0000000000000000000000000000000000000000",
   "almProxy": "0x1601843c5E9bC251A3272907010AFa41Fa18347E"

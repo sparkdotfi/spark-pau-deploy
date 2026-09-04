@@ -6,13 +6,21 @@ import { Script, stdJson } from "../lib/forge-std/src/Script.sol";
 
 import { ScriptTools } from "../lib/dss-test/src/ScriptTools.sol";
 
-import { Ethereum as SkyEthereum }   from "../lib/sky-pau-registry/src/Ethereum.sol";
-
-import { IPAUFactory } from "../lib/diamond-pau/src/interfaces/IPAUFactory.sol";
-
 interface IAdministeredAgentFactoryLike {
 
     function deploy(address admin) external returns (address administeredAgent);
+
+}
+
+interface IPAUFactoryLike {
+
+    function deployAccessControls(address admin) external returns (address accessControls);
+
+    function deployALMProxy(address admin) external returns (address proxy);
+
+    function deployRateLimits(address admin) external returns (address rateLimits);
+
+    function deployController(address accessControls, address proxy, address rateLimits) external returns (address controller);
 
 }
 
@@ -21,14 +29,16 @@ abstract contract DeploySparkPAUBase is Script {
     using stdJson     for string;
     using ScriptTools for string;
 
-    IPAUFactory                   pauFactory               = IPAUFactory(0x257956534374d558c8868338ff7885a93B638277);
-    IAdministeredAgentFactoryLike administeredAgentFactory = IAdministeredAgentFactoryLike(0x039bC8CAe7A5b2B981E5ED98B840C76c7FBacDAc);
+    IPAUFactoryLike               pauFactory;
+    IAdministeredAgentFactoryLike administeredAgentFactory;
 
     address internal admin;
     address internal deployer;
     address internal almProxy;
 
     function run() public virtual {
+        _setXLayerAndRHChainForks();
+
         string memory chain = vm.envOr("CHAIN", string("mainnet"));
 
         vm.createSelectFork("https://rpc.xlayer.tech");
@@ -44,6 +54,9 @@ abstract contract DeploySparkPAUBase is Script {
         admin    = config.readAddress(".admin");
         deployer = config.readAddress(".deployer");
         almProxy = config.readAddress(".almProxy");
+
+        pauFactory               = IPAUFactoryLike(config.readAddress(".pauFactory"));
+        administeredAgentFactory = IAdministeredAgentFactoryLike(config.readAddress(".agentFactory"));
 
         vm.startBroadcast();
 
@@ -101,6 +114,20 @@ abstract contract DeploySparkPAUBase is Script {
         administeredAgent = administeredAgentFactory.deploy(admin);
 
         console2.log("AdministeredAgent deployed at: ", administeredAgent);
+    }
+
+    function _setXLayerAndRHChainForks() internal {
+        setChain("xlayer", ChainData({
+            name    : "XLayer",
+            rpcUrl  : vm.envString("XLAYER_RPC_URL"),
+            chainId : 196
+        }));
+
+        setChain("robinhood_chain", ChainData({
+            name    : "Robinhood Chain",
+            rpcUrl  : vm.envString("RH_RPC_URL"),
+            chainId : 4663
+        }));
     }
 
 }

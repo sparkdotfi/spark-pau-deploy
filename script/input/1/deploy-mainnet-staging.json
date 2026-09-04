@@ -1,7 +1,9 @@
 {
-  "_info": "Spark Mainnet Staging controller deployment.",
+  "_info": "Spark Mainnet Staging controller deployment. Leave ALMProxy empty for full deployment.",
 
   "chainId": 1,
+  "pauFactory": "0x69A5d548830AC2A4Ba90A44a2C75BDA71f97fc66",
+  "agentFactory": "0x2968c3b5478cF93B70aB1e24255d4EDBBd27a089",
   "admin": "0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f",
   "deployer": "0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f",
   "almProxy": "0xe6A3179615cA28abd2d0a0d83bAAC21B24Ff7fFF"

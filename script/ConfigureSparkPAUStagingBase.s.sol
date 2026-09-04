@@ -62,6 +62,8 @@ abstract contract ConfigureSparkPAUStagingBase is Script {
     address internal freezer;
 
     function run() public virtual {
+        _setXLayerAndRHChainForks();
+
         string memory chain = vm.envOr("CHAIN", string("mainnet"));
 
         vm.createSelectFork(getChain(chain).rpcUrl);
@@ -169,6 +171,20 @@ abstract contract ConfigureSparkPAUStagingBase is Script {
         administeredAgent.removeAdmin(deployer);
 
         if (_isFullDeployment()) almProxy.revokeRole(almProxy.DEFAULT_ADMIN_ROLE(), deployer); // Revoking possible only in full deployment
+    }
+
+    function _setXLayerAndRHChainForks() internal {
+        setChain("xlayer", ChainData({
+            name    : "XLayer",
+            rpcUrl  : vm.envString("XLAYER_RPC_URL"),
+            chainId : 196
+        }));
+
+        setChain("robinhood_chain", ChainData({
+            name    : "Robinhood Chain",
+            rpcUrl  : vm.envString("RH_RPC_URL"),
+            chainId : 4663
+        }));
     }
 
 }
