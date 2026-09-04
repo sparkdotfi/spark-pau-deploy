@@ -1,8 +1,10 @@
 {
-  "_info": "Spark XLayer Staging controller deployment.",
+  "_info": "Spark XLayer Staging controller deployment. Leave ALMProxy empty for full deployment.",
 
   "chainId": 196,
-  "admin": "0xb52991d5d29f371f493910c36f5A849b3748Cc28",
+  "pauFactory": "0x0000000000000000000000000000000000000000",
+  "agentFactory": "0x0000000000000000000000000000000000000000",
+  "admin": "0x0000000000000000000000000000000000000000",
   "deployer": "0x0000000000000000000000000000000000000000",
   "almProxy": "0x0000000000000000000000000000000000000000"
 }

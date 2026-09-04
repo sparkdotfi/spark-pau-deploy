@@ -1,7 +1,9 @@
 {
-  "_info": "Spark XLayer Production controller deployment.",
+  "_info": "Spark XLayer Production controller deployment. Leave ALMProxy empty for full deployment.",
 
   "chainId": 196,
+  "pauFactory": "0x0000000000000000000000000000000000000000",
+  "agentFactory": "0x0000000000000000000000000000000000000000",
   "admin": "0x0000000000000000000000000000000000000000",
   "deployer": "0x0000000000000000000000000000000000000000",
   "almProxy": "0x0000000000000000000000000000000000000000"
