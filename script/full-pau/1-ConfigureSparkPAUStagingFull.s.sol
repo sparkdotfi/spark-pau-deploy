@@ -7,7 +7,7 @@ import { ConfigureSparkPAUStagingBase } from "../ConfigureSparkPAUStagingBase.s.
 
 contract ConfigureSparkPAUStagingFull is ConfigureSparkPAUStagingBase {
 
-    address internal constant BASE_ALM_PROXY = 0x370E141E3a568A314bF84decB8c07b82Bb7f1831;
+    address internal constant ETHEREUM_ALM_PROXY = 0xe6A3179615cA28abd2d0a0d83bAAC21B24Ff7fFF;
 
     function run() public override {
         super.run();
@@ -32,8 +32,8 @@ contract ConfigureSparkPAUStagingFull is ConfigureSparkPAUStagingBase {
     function _onboardCCTPFacet() internal {
         // Set domain parameters
         controller.cctp_setDomainParameters(
-            CCTPv2Forwarder.DOMAIN_ID_CIRCLE_BASE,
-            bytes32(uint256(uint160(BASE_ALM_PROXY))),
+            CCTPv2Forwarder.DOMAIN_ID_CIRCLE_ETHEREUM,
+            bytes32(uint256(uint160(ETHEREUM_ALM_PROXY))),
             0,
             100
         );
@@ -42,7 +42,7 @@ contract ConfigureSparkPAUStagingFull is ConfigureSparkPAUStagingBase {
         rateLimits.setRateLimitData(controller.cctp_toCCTPRateLimitKey(), 10e6, 0);
 
         rateLimits.setRateLimitData(
-            controller.cctp_getToDomainRateLimitKey(CCTPv2Forwarder.DOMAIN_ID_CIRCLE_BASE),
+            controller.cctp_getToDomainRateLimitKey(CCTPv2Forwarder.DOMAIN_ID_CIRCLE_ETHEREUM),
             10e6,
             0
         );

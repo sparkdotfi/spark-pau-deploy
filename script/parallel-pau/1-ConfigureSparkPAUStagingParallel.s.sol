@@ -7,7 +7,9 @@ import { ConfigureSparkPAUStagingBase } from "../ConfigureSparkPAUStagingBase.s.
 
 contract ConfigureSparkPAUStagingParallel is ConfigureSparkPAUStagingBase {
 
-    address internal constant BASE_ALM_PROXY = 0x370E141E3a568A314bF84decB8c07b82Bb7f1831;
+    address internal constant XLAYER_ALM_PROXY = 0x802360b1B72421736918d9Fc3cfd88AB875bF238;
+
+    uint32 internal constant DOMAIN_ID_CIRCLE_XLAYER = 37;
 
     function run() public override {
         super.run();
@@ -32,8 +34,8 @@ contract ConfigureSparkPAUStagingParallel is ConfigureSparkPAUStagingBase {
     function _onboardCCTPFacet() internal {
         // Set domain parameters
         controller.cctp_setDomainParameters(
-            CCTPv2Forwarder.DOMAIN_ID_CIRCLE_BASE,
-            bytes32(uint256(uint160(BASE_ALM_PROXY))),
+            DOMAIN_ID_CIRCLE_XLAYER,
+            bytes32(uint256(uint160(XLAYER_ALM_PROXY))),
             0,
             100
         );
@@ -42,7 +44,7 @@ contract ConfigureSparkPAUStagingParallel is ConfigureSparkPAUStagingBase {
         rateLimits.setRateLimitData(controller.cctp_toCCTPRateLimitKey(), 10e6, 0);
 
         rateLimits.setRateLimitData(
-            controller.cctp_getToDomainRateLimitKey(CCTPv2Forwarder.DOMAIN_ID_CIRCLE_BASE),
+            controller.cctp_getToDomainRateLimitKey(DOMAIN_ID_CIRCLE_XLAYER),
             10e6,
             0
         );
