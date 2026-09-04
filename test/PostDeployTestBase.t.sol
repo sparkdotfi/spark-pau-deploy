@@ -8,13 +8,19 @@ import { IAccessControl }                            from "../lib/diamond-pau/li
 import { IAccessControls }                           from "../lib/diamond-pau/src/interfaces/IAccessControls.sol";
 import { IALMProxy }                                 from "../lib/diamond-pau/src/interfaces/IALMProxy.sol";
 import { IBeacon }                                   from "../lib/diamond-pau/src/interfaces/IBeacon.sol";
+import { ICCTPFacet }                                from "../lib/diamond-pau/src/facets/cctp/ICCTPFacet.sol";
 import { Initializable }                             from "../lib/diamond-pau/lib/oz-upgradeable/contracts/proxy/utils/Initializable.sol";
+import { IEnumerableIntegrations as IEI }            from "../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
 import { IMainnetControllerFull as IControllerFull } from "../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
 import { IRateLimits }                               from "../lib/diamond-pau/src/interfaces/IRateLimits.sol";
 
-import { Ethereum as SkyEthereum } from "../lib/sky-pau-registry/src/Ethereum.sol";
-
 import { IAdministeredAgent } from "../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
+
+interface IPAUFactoryLike {
+
+    function beacon() external view returns (address);
+
+}
 
 abstract contract PostDeployTestBase is Test {
 
@@ -22,19 +28,7 @@ abstract contract PostDeployTestBase is Test {
     bytes32 internal constant ALLOCATOR_ROLE     = keccak256("ALLOCATOR_ROLE");
     bytes32 internal constant CONTROLLER_ROLE    = keccak256("CONTROLLER");
 
-    address internal constant ADMINISTERED_AGENT_FACTORY = SkyEthereum.ADMINISTERED_AGENT_FACTORY;
-    address internal constant BEACON                     = SkyEthereum.BEACON;
-    address internal constant PAU_FACTORY                = SkyEthereum.PAU_FACTORY;
-
-    // Deployment specific addresses, assigned by _setDeploymentAddresses in the inheriting test.
-    // ADMIN and DEPLOYER come from the script inputs, the rest from the script output.
-    address internal ACCESS_CONTROLS;
-    address internal ADMIN;
-    address internal ADMINISTERED_AGENT;
-    address internal ALM_PROXY;
-    address internal CONTROLLER;
-    address internal DEPLOYER;
-    address internal RATE_LIMITS;
+    bytes32 internal constant CCTP_FACET_ID = bytes32(abi.encodePacked("CCTP_FACET"));
 
     IAccessControls    internal accessControls;
     IAdministeredAgent internal administeredAgent;
@@ -42,38 +36,6 @@ abstract contract PostDeployTestBase is Test {
     IBeacon            internal beacon;
     IControllerFull    internal controller;
     IRateLimits        internal rateLimits;
-
-    function setUp() public virtual {
-        _setDeploymentAddresses();
-
-        vm.createSelectFork(getChain(_getChain()).rpcUrl, _getBlock());
-
-        accessControls    = IAccessControls(ACCESS_CONTROLS);
-        administeredAgent = IAdministeredAgent(ADMINISTERED_AGENT);
-        almProxy          = IALMProxy(ALM_PROXY);
-        beacon            = IBeacon(BEACON);
-        controller        = IControllerFull(CONTROLLER);
-        rateLimits        = IRateLimits(RATE_LIMITS);
-    }
-
-    /**********************************************************************************************/
-    /*** Deployment specific hooks                                                              ***/
-    /**********************************************************************************************/
-
-    /// @dev Block to fork at, after the deployment scripts have been executed.
-    function _getBlock() internal pure virtual returns (uint256);
-
-    /// @dev Chain the deployment scripts were run against, as passed to them in CHAIN.
-    function _getChain() internal pure virtual returns (string memory) {
-        return "mainnet";
-    }
-
-    /// @dev True when the deployment brought up its own ALMProxy, false when it attached to the
-    ///      existing one. Only the ALMProxy assertions differ between the two.
-    function _isFullDeployment() internal pure virtual returns (bool);
-
-    /// @dev Assigns every deployment specific address, pasted from the script output.
-    function _setDeploymentAddresses() internal virtual;
 
     /**********************************************************************************************/
     /*** Get events helpers                                                                     ***/
@@ -177,12 +139,89 @@ abstract contract PostDeployTestBase is Test {
     }
 
     /**********************************************************************************************/
+    /*** State test helpers                                                                     ***/
+    /**********************************************************************************************/
+
+    function _assertIntegration(bytes32 integrationId) internal view {
+        IEI.Config memory beaconConfig     = beacon.getConfig(integrationId);
+        IEI.Config memory controllerConfig = controller.getConfig(integrationId);
+
+        assertEq(controllerConfig.facet,        beaconConfig.facet);
+        assertEq(controllerConfig.wires.length, beaconConfig.wires.length);
+
+        for (uint256 i = 0; i < controllerConfig.wires.length; ++i) {
+            assertEq(controllerConfig.wires[i].callSelector,     beaconConfig.wires[i].callSelector);
+            assertEq(controllerConfig.wires[i].delegateSelector, beaconConfig.wires[i].delegateSelector);
+        }
+    }
+
+    function _assertRateLimitData(bytes32 key, uint256 maxAmount, uint256 slope) internal view {
+        IRateLimits.RateLimitData memory data = rateLimits.getRateLimitData(key);
+
+        assertEq(data.maxAmount, maxAmount);
+        assertEq(data.slope,     slope);
+    }
+
+    /**********************************************************************************************/
     /*** Event test helpers                                                                     ***/
     /**********************************************************************************************/
+
+    function _assertCCTPDomainParametersSetEvent(
+        VmSafe.EthGetLogs memory log,
+        uint32                   destinationDomain,
+        address                  mintRecipient,
+        uint32                   minFeeCapRate,
+        uint32                   maxFeeCapRate
+    ) internal pure {
+        ( uint32 loggedMinFeeCapRate, uint32 loggedMaxFeeCapRate ) = abi.decode(log.data, (uint32, uint32));
+
+        assertEq(log.topics[0],          ICCTPFacet.CCTPDomainParametersSet.selector);
+        assertEq(uint256(log.topics[1]), uint256(destinationDomain));
+        assertEq(log.topics[2],          bytes32(uint256(uint160(mintRecipient))));
+
+        assertEq(loggedMinFeeCapRate, minFeeCapRate);
+        assertEq(loggedMaxFeeCapRate, maxFeeCapRate);
+    }
 
     function _assertInitializedEvent(VmSafe.EthGetLogs memory log) internal pure {
         assertEq(log.topics[0], Initializable.Initialized.selector);
         assertEq(log.data,      abi.encode(1));
+    }
+
+    function _assertIntegrationSetEvent(VmSafe.EthGetLogs memory log, bytes32 integrationId) internal view {
+        IEI.Config memory controllerConfig = abi.decode(log.data, (IEI.Config));
+        IEI.Config memory beaconConfig     = beacon.getConfig(integrationId);
+
+        assertEq(log.topics[0], IEI.IntegrationSet.selector);
+        assertEq(log.topics[1], integrationId);
+
+        assertEq(controllerConfig.facet,        beaconConfig.facet);
+        assertEq(controllerConfig.wires.length, beaconConfig.wires.length);
+
+        for (uint256 i = 0; i < controllerConfig.wires.length; ++i) {
+            assertEq(controllerConfig.wires[i].callSelector,     beaconConfig.wires[i].callSelector);
+            assertEq(controllerConfig.wires[i].delegateSelector, beaconConfig.wires[i].delegateSelector);
+        }
+    }
+
+    function _assertRateLimitDataSetEvent(
+        VmSafe.EthGetLogs memory log,
+        bytes32                  key,
+        uint256                  maxAmount,
+        uint256                  slope
+    ) internal pure {
+        (
+            uint256 loggedMaxAmount,
+            uint256 loggedSlope,
+            uint256 loggedLastAmount,
+        ) = abi.decode(log.data, (uint256, uint256, uint256, uint256));
+
+        assertEq(log.topics[0], IRateLimits.RateLimitDataSet.selector);
+        assertEq(log.topics[1], key);
+
+        assertEq(loggedMaxAmount,  maxAmount);
+        assertEq(loggedSlope,      slope);
+        assertEq(loggedLastAmount, maxAmount);
     }
 
     function _assertRoleGrantedEvent(

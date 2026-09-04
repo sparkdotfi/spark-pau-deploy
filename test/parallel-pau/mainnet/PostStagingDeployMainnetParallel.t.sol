@@ -1,39 +1,66 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.34;
 
-import { VmSafe } from "../lib/forge-std/src/Vm.sol";
+import { VmSafe } from "../../../lib/forge-std/src/Vm.sol";
 
-import { ICCTPFacet }                     from "../lib/diamond-pau/src/facets/cctp/ICCTPFacet.sol";
-import { IEnumerableIntegrations as IEI } from "../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
-import { IRateLimits }                    from "../lib/diamond-pau/src/interfaces/IRateLimits.sol";
+import { IAccessControls }                           from "../../../lib/diamond-pau/src/interfaces/IAccessControls.sol";
+import { IALMProxy }                                 from "../../../lib/diamond-pau/src/interfaces/IALMProxy.sol";
+import { IBeacon }                                   from "../../../lib/diamond-pau/src/interfaces/IBeacon.sol";
+import { IEnumerableIntegrations as IEI }            from "../../../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
+import { IMainnetControllerFull as IControllerFull } from "../../../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
+import { IRateLimits }                               from "../../../lib/diamond-pau/src/interfaces/IRateLimits.sol";
 
-import { CCTPv2Forwarder } from "../lib/diamond-pau/lib/grove-xchain-helpers/src/forwarders/CCTPv2Forwarder.sol";
+import { IAdministeredAgent } from "../../../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
 
-import { IAdministeredAgent } from "../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
+import { IPAUFactoryLike, PostDeployTestBase } from "../../PostDeployTestBase.t.sol";
 
-import { PostDeployTestBase } from "./PostDeployTestBase.t.sol";
+contract PostStagingDeployMainnetParallel is PostDeployTestBase {
 
-/// Staging runs the deploy script with the deployer as admin, then the configure script which
-/// configures the stack and hands every component over to the staging admin.
-abstract contract PostStagingDeployTestBase is PostDeployTestBase {
+    // script/input/1/deploy-mainnet-staging.json
+    address internal constant AGENT_FACTORY = 0x2968c3b5478cF93B70aB1e24255d4EDBBd27a089;
+    address internal constant PAU_FACTORY   = 0x69A5d548830AC2A4Ba90A44a2C75BDA71f97fc66;
 
-    bytes32 internal constant CCTP_FACET_ID = bytes32(abi.encodePacked("CCTP_FACET"));
+    // script/input/1/config-mainnet-staging.json
+    address internal constant ADMIN    = 0xb52991d5d29f371f493910c36f5A849b3748Cc28;
+    address internal constant DEPLOYER = 0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f;
+    address internal constant FREEZER  = 0x611C7c37F296240c2fF5a92f0B4a398B01B237c4;
+    address internal constant RELAYER  = 0x611C7c37F296240c2fF5a92f0B4a398B01B237c4;
 
-    uint32 internal constant CCTP_BASE_DOMAIN = CCTPv2Forwarder.DOMAIN_ID_CIRCLE_BASE;
+    // script/output/1/deploy-mainnet-staging-1788367871.json
+    address internal constant ACCESS_CONTROLS    = 0x68E83368f6b14CfE0E216b4c57Ed02AEF8570574;
+    address internal constant ADMINISTERED_AGENT = 0xfFe07E9A44ABe851DD195e5f433f4860A25aEc06;
+    address internal constant ALM_PROXY          = 0xe6A3179615cA28abd2d0a0d83bAAC21B24Ff7fFF;
+    address internal constant CONTROLLER         = 0x803A3FdCA59aAF9bbAD86B34592300D95f033C0e;
+    address internal constant RATE_LIMITS        = 0xaCea3604adEb2ad252eC093d0075245CB3cf9eE6;
 
-    // BASE_ALM_PROXY from the configure script, bytes32 encoded as the CCTP mint recipient.
-    address internal constant BASE_ALM_PROXY      = 0x370E141E3a568A314bF84decB8c07b82Bb7f1831;
-    bytes32 internal constant CCTP_MINT_RECIPIENT = bytes32(uint256(uint160(BASE_ALM_PROXY)));
+    // script/parallel-pau/1-ConfigureSparkPAUStagingParallel.s.sol
+    uint32  internal constant XLAYER_CCTP_DOMAIN         = 37;  // X Layer
+    address internal constant XLAYER_CCTP_MINT_RECIPIENT = 0x802360b1B72421736918d9Fc3cfd88AB875bF238;
 
-    uint32 internal constant CCTP_MIN_FEE_CAP_RATE = 0;
-    uint32 internal constant CCTP_MAX_FEE_CAP_RATE = 100;
+    uint32 internal constant XLAYER_CCTP_MIN_FEE_CAP_RATE = 0;
+    uint32 internal constant XLAYER_CCTP_MAX_FEE_CAP_RATE = 100;
 
-    uint256 internal constant CCTP_RATE_LIMIT_MAX_AMOUNT = 10e6;
-    uint256 internal constant CCTP_RATE_LIMIT_SLOPE      = 0;
+    uint256 internal constant XLAYER_CCTP_RATE_LIMIT_MAX_AMOUNT = 10e6;
+    uint256 internal constant XLAYER_CCTP_RATE_LIMIT_SLOPE      = uint256(100e6) / 1 hours;
 
-    // Agent actor and revoker from the config input, assigned by _setDeploymentAddresses.
-    address internal FREEZER;
-    address internal RELAYER;
+    address internal BEACON;
+
+    function setUp() public {
+        vm.createSelectFork(getChain("mainnet").rpcUrl, _getBlock());
+
+        BEACON = IPAUFactoryLike(PAU_FACTORY).beacon();
+
+        accessControls    = IAccessControls(ACCESS_CONTROLS);
+        administeredAgent = IAdministeredAgent(ADMINISTERED_AGENT);
+        almProxy          = IALMProxy(ALM_PROXY);
+        beacon            = IBeacon(BEACON);
+        controller        = IControllerFull(CONTROLLER);
+        rateLimits        = IRateLimits(RATE_LIMITS);
+    }
+
+    function _getBlock() internal pure returns (uint256) {
+        return 25904689; // Sep-04-2026 02:55:35 PM +UTC
+    }
 
     function test_deployState() external view {
         /******************************************************************************************/
@@ -58,24 +85,11 @@ abstract contract PostStagingDeployTestBase is PostDeployTestBase {
         /*** ALMProxy post deploy state                                                         ***/
         /******************************************************************************************/
 
-        if (_isFullDeployment()) {
-            assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, ADMIN),      true);
-            assertEq(almProxy.hasRole(CONTROLLER_ROLE,    CONTROLLER), true);
+        // A parallel deployment attaches to the ALMProxy named in the deploy input, which has
+        // admins of its own. Granting CONTROLLER to the new controller is a governance spell
+        // action, so both scripts leave the proxy untouched.
 
-            // DEPLOYER/PAU_FACTORY has no roles on the ALMProxy
-
-            assertEq(almProxy.hasRole(CONTROLLER_ROLE,    DEPLOYER), false);
-            assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, DEPLOYER), false);
-
-            assertEq(almProxy.hasRole(CONTROLLER_ROLE,    PAU_FACTORY), false);
-            assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, PAU_FACTORY), false);
-        } else {
-            // A parallel deployment attaches to the ALMProxy named in the deploy input, which has
-            // admins of its own. Granting CONTROLLER to the new controller is a governance spell
-            // action, so both scripts leave the proxy untouched.
-
-            assertEq(almProxy.hasRole(CONTROLLER_ROLE, CONTROLLER), false);
-        }
+        assertEq(almProxy.hasRole(CONTROLLER_ROLE, CONTROLLER), false);
 
         /******************************************************************************************/
         /*** RateLimits post deploy state                                                       ***/
@@ -94,8 +108,17 @@ abstract contract PostStagingDeployTestBase is PostDeployTestBase {
 
         // Configurations: CCTP rate limits.
 
-        _assertRateLimitData(controller.cctp_toCCTPRateLimitKey());
-        _assertRateLimitData(controller.cctp_getToDomainRateLimitKey(CCTP_BASE_DOMAIN));
+        _assertRateLimitData(
+            controller.cctp_toCCTPRateLimitKey(),
+            XLAYER_CCTP_RATE_LIMIT_MAX_AMOUNT,
+            XLAYER_CCTP_RATE_LIMIT_SLOPE
+        );
+
+        _assertRateLimitData(
+            controller.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN),
+            XLAYER_CCTP_RATE_LIMIT_MAX_AMOUNT,
+            XLAYER_CCTP_RATE_LIMIT_SLOPE
+        );
 
         /******************************************************************************************/
         /*** Controller post deploy state                                                       ***/
@@ -124,11 +147,11 @@ abstract contract PostStagingDeployTestBase is PostDeployTestBase {
             bytes32 mintRecipient,
             uint32  minFeeCapRate,
             uint32  maxFeeCapRate
-        ) = controller.cctp_getDomainParameters(CCTP_BASE_DOMAIN);
+        ) = controller.cctp_getDomainParameters(XLAYER_CCTP_DOMAIN);
 
-        assertEq(mintRecipient, CCTP_MINT_RECIPIENT);
-        assertEq(minFeeCapRate, CCTP_MIN_FEE_CAP_RATE);
-        assertEq(maxFeeCapRate, CCTP_MAX_FEE_CAP_RATE);
+        assertEq(mintRecipient, bytes32(uint256(uint160(XLAYER_CCTP_MINT_RECIPIENT))));
+        assertEq(minFeeCapRate, XLAYER_CCTP_MIN_FEE_CAP_RATE);
+        assertEq(maxFeeCapRate, XLAYER_CCTP_MAX_FEE_CAP_RATE);
 
         /******************************************************************************************/
         /*** AdministeredAgent post deploy state                                                ***/
@@ -175,28 +198,8 @@ abstract contract PostStagingDeployTestBase is PostDeployTestBase {
         /*** ALMProxy events                                                                    ***/
         /******************************************************************************************/
 
-        // A parallel deployment attaches to the existing ALMProxy, which carries unrelated history,
-        // so only a full deployment can assert on its complete log set.
-
-        if (_isFullDeployment()) {
-            VmSafe.EthGetLogs[] memory almProxyAllLogs = _getEvents(block.chainid, ALM_PROXY, "");
-
-            assertEq(almProxyAllLogs.length, 4);
-
-            // RoleGranted(DEFAULT_ADMIN_ROLE, DEPLOYER, PAU_FACTORY) from PAUFactory.deployALMProxy: ALMProxy constructor.
-            _assertRoleGrantedEvent(almProxyAllLogs[0], DEFAULT_ADMIN_ROLE, DEPLOYER, PAU_FACTORY);
-
-            // RoleGranted(DEFAULT_ADMIN_ROLE, ADMIN, DEPLOYER) from InitPAULib._grantDefaultAdmins.
-            // Role transfers from deployer to admin.
-            _assertRoleGrantedEvent(almProxyAllLogs[1], DEFAULT_ADMIN_ROLE, ADMIN, DEPLOYER);
-
-            // RoleGranted(CONTROLLER_ROLE, CONTROLLER, DEPLOYER) from InitPAULib._grantRoles: CONTROLLER_ROLE grant.
-            _assertRoleGrantedEvent(almProxyAllLogs[2], CONTROLLER_ROLE, CONTROLLER, DEPLOYER);
-
-            // RoleRevoked(DEFAULT_ADMIN_ROLE, DEPLOYER, DEPLOYER) from the configure script: DEFAULT_ADMIN_ROLE revoke.
-            // Role revoked from deployer.
-            _assertRoleRevokedEvent(almProxyAllLogs[3], DEFAULT_ADMIN_ROLE, DEPLOYER, DEPLOYER);
-        }
+        // A parallel deployment attaches to the existing ALMProxy, which carries unrelated history
+        // and is left untouched by both scripts, so there is nothing to assert on it here.
 
         /******************************************************************************************/
         /*** RateLimits events                                                                  ***/
@@ -217,12 +220,19 @@ abstract contract PostStagingDeployTestBase is PostDeployTestBase {
         _assertRoleGrantedEvent(rateLimitsAllLogs[2], CONTROLLER_ROLE, CONTROLLER, DEPLOYER);
 
         // RateLimitDataSet(cctp_toCCTPRateLimitKey) from the configure script: CCTP facet onboarding.
-        _assertRateLimitDataSetEvent(rateLimitsAllLogs[3], controller.cctp_toCCTPRateLimitKey());
+        _assertRateLimitDataSetEvent(
+            rateLimitsAllLogs[3],
+            controller.cctp_toCCTPRateLimitKey(),
+            XLAYER_CCTP_RATE_LIMIT_MAX_AMOUNT,
+            XLAYER_CCTP_RATE_LIMIT_SLOPE
+        );
 
         // RateLimitDataSet(cctp_getToDomainRateLimitKey) from the configure script: CCTP facet onboarding.
         _assertRateLimitDataSetEvent(
             rateLimitsAllLogs[4],
-            controller.cctp_getToDomainRateLimitKey(CCTP_BASE_DOMAIN)
+            controller.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN),
+            XLAYER_CCTP_RATE_LIMIT_MAX_AMOUNT,
+            XLAYER_CCTP_RATE_LIMIT_SLOPE
         );
 
         // RoleRevoked(DEFAULT_ADMIN_ROLE, DEPLOYER, DEPLOYER) from the configure script: DEFAULT_ADMIN_ROLE revoke.
@@ -243,8 +253,14 @@ abstract contract PostStagingDeployTestBase is PostDeployTestBase {
         // IntegrationSet(integrationId, config) from InitPAULib: updateIntegrations.
         _assertIntegrationSetEvent(controllerAllLogs[1], CCTP_FACET_ID);
 
-        // CCTPDomainParametersSet(CCTP_BASE_DOMAIN, CCTP_MINT_RECIPIENT, 0, 100) from the configure script: CCTP facet onboarding.
-        _assertCCTPDomainParametersSetEvent(controllerAllLogs[2]);
+        // CCTPDomainParametersSet(CCTP_DOMAIN, CCTP_MINT_RECIPIENT, 0, 100) from the configure script: CCTP facet onboarding.
+        _assertCCTPDomainParametersSetEvent(
+            controllerAllLogs[2],
+            XLAYER_CCTP_DOMAIN,
+            XLAYER_CCTP_MINT_RECIPIENT,
+            XLAYER_CCTP_MIN_FEE_CAP_RATE,
+            XLAYER_CCTP_MAX_FEE_CAP_RATE
+        );
 
         /******************************************************************************************/
         /*** AdministeredAgent events                                                           ***/
@@ -254,10 +270,10 @@ abstract contract PostStagingDeployTestBase is PostDeployTestBase {
 
         assertEq(administeredAgentAllLogs.length, 5);
 
-        // AdminAdded(DEPLOYER, ADMINISTERED_AGENT_FACTORY) from AdministeredAgent constructor.
+        // AdminAdded(DEPLOYER, AGENT_FACTORY) from AdministeredAgent constructor.
         assertEq(administeredAgentAllLogs[0].topics[0],             IAdministeredAgent.AdminAdded.selector);
         assertEq(_toAddress(administeredAgentAllLogs[0].topics[1]), DEPLOYER);
-        assertEq(_toAddress(administeredAgentAllLogs[0].topics[2]), ADMINISTERED_AGENT_FACTORY);
+        assertEq(_toAddress(administeredAgentAllLogs[0].topics[2]), AGENT_FACTORY);
 
         // AdminAdded(ADMIN, DEPLOYER) from InitPAULib._configureAgent: addAdmin.
         assertEq(administeredAgentAllLogs[1].topics[0],             IAdministeredAgent.AdminAdded.selector);
@@ -278,76 +294,6 @@ abstract contract PostStagingDeployTestBase is PostDeployTestBase {
         assertEq(administeredAgentAllLogs[4].topics[0],             IAdministeredAgent.AdminRemoved.selector);
         assertEq(_toAddress(administeredAgentAllLogs[4].topics[1]), DEPLOYER);
         assertEq(_toAddress(administeredAgentAllLogs[4].topics[2]), DEPLOYER);
-    }
-
-    /**********************************************************************************************/
-    /*** Helper functions                                                                       ***/
-    /**********************************************************************************************/
-
-    function _assertIntegration(bytes32 integrationId) internal view {
-        IEI.Config memory beaconConfig     = beacon.getConfig(integrationId);
-        IEI.Config memory controllerConfig = controller.getConfig(integrationId);
-
-        assertEq(controllerConfig.facet,        beaconConfig.facet);
-        assertEq(controllerConfig.wires.length, beaconConfig.wires.length);
-
-        for (uint256 i = 0; i < controllerConfig.wires.length; ++i) {
-            assertEq(controllerConfig.wires[i].callSelector,     beaconConfig.wires[i].callSelector);
-            assertEq(controllerConfig.wires[i].delegateSelector, beaconConfig.wires[i].delegateSelector);
-        }
-    }
-
-    function _assertRateLimitData(bytes32 key) internal view {
-        IRateLimits.RateLimitData memory data = rateLimits.getRateLimitData(key);
-
-        assertEq(data.maxAmount, CCTP_RATE_LIMIT_MAX_AMOUNT);
-        assertEq(data.slope,     CCTP_RATE_LIMIT_SLOPE);
-    }
-
-    /**********************************************************************************************/
-    /*** Event test helpers                                                                     ***/
-    /**********************************************************************************************/
-
-    function _assertCCTPDomainParametersSetEvent(VmSafe.EthGetLogs memory log) internal pure {
-        (uint32 minFeeCapRate, uint32 maxFeeCapRate) = abi.decode(log.data, (uint32, uint32));
-
-        assertEq(log.topics[0],          ICCTPFacet.CCTPDomainParametersSet.selector);
-        assertEq(uint256(log.topics[1]), uint256(CCTP_BASE_DOMAIN));
-        assertEq(log.topics[2],          CCTP_MINT_RECIPIENT);
-
-        assertEq(minFeeCapRate, CCTP_MIN_FEE_CAP_RATE);
-        assertEq(maxFeeCapRate, CCTP_MAX_FEE_CAP_RATE);
-    }
-
-    function _assertIntegrationSetEvent(VmSafe.EthGetLogs memory log, bytes32 integrationId) internal view {
-        IEI.Config memory controllerConfig = abi.decode(log.data, (IEI.Config));
-        IEI.Config memory beaconConfig     = beacon.getConfig(integrationId);
-
-        assertEq(log.topics[0], IEI.IntegrationSet.selector);
-        assertEq(log.topics[1], integrationId);
-
-        assertEq(controllerConfig.facet,        beaconConfig.facet);
-        assertEq(controllerConfig.wires.length, beaconConfig.wires.length);
-
-        for (uint256 i = 0; i < controllerConfig.wires.length; ++i) {
-            assertEq(controllerConfig.wires[i].callSelector,     beaconConfig.wires[i].callSelector);
-            assertEq(controllerConfig.wires[i].delegateSelector, beaconConfig.wires[i].delegateSelector);
-        }
-    }
-
-    function _assertRateLimitDataSetEvent(VmSafe.EthGetLogs memory log, bytes32 key) internal pure {
-        (
-            uint256 maxAmount,
-            uint256 slope,
-            uint256 lastAmount,
-        ) = abi.decode(log.data, (uint256, uint256, uint256, uint256));
-
-        assertEq(log.topics[0], IRateLimits.RateLimitDataSet.selector);
-        assertEq(log.topics[1], key);
-
-        assertEq(maxAmount,  CCTP_RATE_LIMIT_MAX_AMOUNT);
-        assertEq(slope,      CCTP_RATE_LIMIT_SLOPE);
-        assertEq(lastAmount, CCTP_RATE_LIMIT_MAX_AMOUNT);
     }
 
 }

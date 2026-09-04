@@ -33,17 +33,15 @@ test:
 clean:
 	forge clean
 
-test-postdeploy-mainnet-full-production:
-	forge test --match-path "test/full-pau/PostProductionDeployFull.t.sol" -vvv
-
-test-postdeploy-mainnet-full-staging:
-	forge test --match-path "test/full-pau/PostStagingDeployFull.t.sol" -vvv
-
-test-postdeploy-mainnet-parallel-production:
-	forge test --match-path "test/parallel-pau/PostProductionDeployParallel.t.sol" -vvv
+# Post deploy tests assert the end state of a deployment that has already been run. Only the two
+# staging stacks that exist have tests: mainnet parallel and xlayer full.
+# XLayer has state assertions only, the Etherscan v2 log endpoint does not cover chain 196.
 
 test-postdeploy-mainnet-parallel-staging:
-	forge test --match-path "test/parallel-pau/PostStagingDeployParallel.t.sol" -vvv
+	forge test --match-path "test/parallel-pau/mainnet/PostStagingDeployMainnetParallel.t.sol" -vvv
+
+test-postdeploy-xlayer-full-staging:
+	forge test --match-path "test/full-pau/xlayer/PostStagingDeployXLayerFull.t.sol" -vvv
 
 # --------------------------------------------------------------------------------------------------
 # Deploy: AccessControls + RateLimits + Controller + AdministeredAgent                             #
