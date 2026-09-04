@@ -46,7 +46,7 @@ contract ConfigureSparkPAUStagingParallel is ConfigureSparkPAUStagingBase {
         rateLimits.setRateLimitData(
             controller.cctp_getToDomainRateLimitKey(DOMAIN_ID_CIRCLE_XLAYER),
             10e6,
-            0
+            uint256(100e6) / 1 hours
         );
     }
 

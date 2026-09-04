@@ -44,7 +44,7 @@ contract ConfigureSparkPAUStagingFull is ConfigureSparkPAUStagingBase {
         rateLimits.setRateLimitData(
             controller.cctp_getToDomainRateLimitKey(CCTPv2Forwarder.DOMAIN_ID_CIRCLE_ETHEREUM),
             10e6,
-            0
+            uint256(100e6) / 1 hours
         );
     }
 
