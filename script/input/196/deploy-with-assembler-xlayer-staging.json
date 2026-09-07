@@ -1,7 +1,7 @@
 {
   "_info": "Spark XLayer Staging PAU deployment with default PAUAssembler.",
 
-  "chainId": 1,
+  "chainId": 196,
   "defaultPAUAssembler": "0xB4A254db64cEd1F90E2343af1c4e437dC2a2B014",
   "relayer": "0xE4FB2B5B40EE539f5b9551cf699674d3082eD39b",
   "freezer": "0xE4FB2B5B40EE539f5b9551cf699674d3082eD39b",
