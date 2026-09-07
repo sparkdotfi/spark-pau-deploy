@@ -58,7 +58,7 @@ abstract contract DeploySparkPAUFullBase is Script {
         vm.setEnv("FOUNDRY_ROOT_CHAINID", vm.toString(block.chainid));
 
         string memory env      = vm.envString("ENV");
-        string memory fileSlug = string(abi.encodePacked("deploy-with-assembler-", chain, "-", env));
+        string memory fileSlug = string(abi.encodePacked("deploy-pau-with-assembler-", chain, "-", env));
         string memory config   = ScriptTools.loadConfig(fileSlug);
 
         require(block.chainid == config.readUint(".chainId"), "DeploySparkPAUFull/Invalid chain ID");
@@ -89,11 +89,13 @@ abstract contract DeploySparkPAUFullBase is Script {
 
         vm.stopBroadcast();
 
-        ScriptTools.exportContract(fileSlug, "proxy",           address(proxy));
-        ScriptTools.exportContract(fileSlug, "controller",      address(controller));
-        ScriptTools.exportContract(fileSlug, "accessControls",  address(accessControls));
-        ScriptTools.exportContract(fileSlug, "rateLimits",      address(rateLimits));
-        ScriptTools.exportContract(fileSlug, "allocatorAgents", allocatorAgents[0]);
+        console2.log("Deployed PAU with default PAUAssembler");
+
+        ScriptTools.exportContract(fileSlug, "proxy",          address(proxy));
+        ScriptTools.exportContract(fileSlug, "controller",     address(controller));
+        ScriptTools.exportContract(fileSlug, "accessControls", address(accessControls));
+        ScriptTools.exportContract(fileSlug, "rateLimits",     address(rateLimits));
+        ScriptTools.exportContract(fileSlug, "allocatorAgent", allocatorAgents[0]);
     }
 
     /**********************************************************************************************/

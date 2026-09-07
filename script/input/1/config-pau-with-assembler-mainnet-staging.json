@@ -1,10 +1,18 @@
 {
-  "_info": "Spark Mainnet Staging controller configuration.",
+  "_info": "Spark Mainnet Staging PAU configuration.",
 
   "chainId": 1,
 
   "admin": "0xb52991d5d29f371f493910c36f5A849b3748Cc28",
   "administeredAgent": "0x8d165c44a8043C578fAA9fb35B99d324A7F83943",
   "controller": "0xB87A3680f5957AB3dC5F26d77b59326C267683a4",
-  "deployer": "0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f"
+  "deployer": "0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f",
+
+  "_cctpFacet": "Values to onboard the CCTP facet.",
+  "xlayerDomainId": 37,
+  "xlayerAlmProxy": "0x4aeB3eA3cE2cF9ABaF8ED558C72A215743D7eb4F",
+
+  "_erc4626Facet": "Values to onboard the ERC4626 facet.",
+  "usds": "0xdC035D45d973E3EC169d2276DDab16f1e407384F",
+  "susds": "0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD"
 }

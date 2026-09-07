@@ -7,21 +7,21 @@ import { console2 } from "../../lib/forge-std/src/console2.sol";
 
 import { ScriptTools } from "../../lib/dss-test/src/ScriptTools.sol";
 
-import { CCTPv2Forwarder } from "../../lib/diamond-pau/lib/grove-xchain-helpers/src/forwarders/CCTPv2Forwarder.sol";
-
-import { Ethereum } from "../../lib/spark-address-registry/src/Ethereum.sol";
-
 import { IMainnetControllerFull as IControllerFull } from "../../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
 
 interface IAccessControlsLike {
 
     function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
 
+    function grantRole(bytes32 role, address account) external;
+
     function revokeRole(bytes32 role, address account) external;
 
 }
 
 interface IAdministeredAgentLike {
+
+    function addAdmin(address admin) external;
 
     function removeAdmin(address admin) external;
 
@@ -30,6 +30,8 @@ interface IAdministeredAgentLike {
 interface IALMProxyLike {
 
     function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
+
+    function grantRole(bytes32 role, address account) external;
 
     function revokeRole(bytes32 role, address account) external;
 
@@ -45,13 +47,15 @@ interface IRateLimitsLike {
 
     function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
 
+    function grantRole(bytes32 role, address account) external;
+
     function revokeRole(bytes32 role, address account) external;
 
     function setRateLimitData(bytes32 key, uint256 maxAmount, uint256 slope) external;
 
 }
 
-abstract contract ConfigureSparkPAUStagingFullBase is Script {
+abstract contract ConfigureSparkPAUFullBase is Script {
 
     using stdJson     for string;
     using ScriptTools for string;
@@ -65,6 +69,8 @@ abstract contract ConfigureSparkPAUStagingFullBase is Script {
     address internal admin;
     address internal deployer;
 
+    string internal config;
+
     function run() public virtual {
         _setXLayerAndRHChainForks();
 
@@ -74,10 +80,12 @@ abstract contract ConfigureSparkPAUStagingFullBase is Script {
 
         vm.setEnv("FOUNDRY_ROOT_CHAINID", vm.toString(block.chainid));
 
-        string memory fileSlug = string(abi.encodePacked("config-pau-with-assembler-", chain, "-", "staging"));
-        string memory config   = ScriptTools.loadConfig(fileSlug);
+        string memory env      = vm.envString("ENV");
+        string memory fileSlug = string(abi.encodePacked("config-pau-with-assembler-", chain, "-", env));
 
-        require(block.chainid == config.readUint(".chainId"), "ConfigureSparkPAUStagingBase/invalid-chain-id");
+        config = ScriptTools.loadConfig(fileSlug);
+
+        require(block.chainid == config.readUint(".chainId"), "ConfigureSparkPAUFullBase/invalid-chain-id");
 
         controller        = IControllerFull(config.readAddress(".controller"));
         almProxy          = IALMProxyLike(controller.proxy());
@@ -88,11 +96,11 @@ abstract contract ConfigureSparkPAUStagingFullBase is Script {
         admin    = config.readAddress(".admin");
         deployer = config.readAddress(".deployer");
 
-        require(admin != deployer, "ConfigureSparkPAUStagingFullBase/admin-is-deployer");
+        require(admin != deployer, "ConfigureSparkPAUFullBase/admin-is-deployer");
 
         vm.startBroadcast();
 
-        require(msg.sender == deployer, "ConfigureSparkPAUStagingFullBase/sender-not-deployer");
+        require(msg.sender == deployer, "ConfigureSparkPAUFullBase/sender-not-deployer");
 
         // Step 1: Onboard Facets
 
@@ -100,7 +108,7 @@ abstract contract ConfigureSparkPAUStagingFullBase is Script {
 
         // Step 2: Remove deployer as admin of AccessControls, AdministeredAgent and RateLimits.
 
-        _removeDeployerAsAdmin();
+        _transferAdminRoles();
 
         console2.log("Deployer removed as admin of AccessControls, AdministeredAgent, RateLimits and ALMProxy");
 
@@ -113,13 +121,20 @@ abstract contract ConfigureSparkPAUStagingFullBase is Script {
 
     function _onboardFacets() internal virtual { }
 
-    function _removeDeployerAsAdmin() internal {
+    function _transferAdminRoles() internal {
+        // Grant admin roles to admin
+        accessControls.grantRole(accessControls.DEFAULT_ADMIN_ROLE(), admin);
+        almProxy.grantRole(almProxy.DEFAULT_ADMIN_ROLE(),             admin);
+        rateLimits.grantRole(rateLimits.DEFAULT_ADMIN_ROLE(),         admin);
+
+        administeredAgent.addAdmin(admin);
+
+        // Revoke admin roles from deployer
         accessControls.revokeRole(accessControls.DEFAULT_ADMIN_ROLE(), deployer);
+        almProxy.revokeRole(almProxy.DEFAULT_ADMIN_ROLE(),             deployer);
         rateLimits.revokeRole(rateLimits.DEFAULT_ADMIN_ROLE(),         deployer);
 
         administeredAgent.removeAdmin(deployer);
-
-        almProxy.revokeRole(almProxy.DEFAULT_ADMIN_ROLE(), deployer);
     }
 
     function _setXLayerAndRHChainForks() internal {
@@ -138,11 +153,25 @@ abstract contract ConfigureSparkPAUStagingFullBase is Script {
 
 }
 
-contract ConfigureSparkPAUStagingFullMainnet is ConfigureSparkPAUStagingFullBase {
+contract ConfigureSparkPAUFullMainnet is ConfigureSparkPAUFullBase {
 
-    address internal constant XLAYER_ALM_PROXY = 0x4aeB3eA3cE2cF9ABaF8ED558C72A215743D7eb4F;
+    using stdJson for string;
 
-    uint32 internal constant XLAYER_DOMAIN_ID = 37;
+    address internal xlayerAlmProxy;
+    uint32  internal xlayerDomainId;
+
+    address internal usds;
+    address internal susds;
+
+    function run() public override {
+        super.run();
+
+        xlayerAlmProxy = config.readAddress(".xlayerAlmProxy");
+        xlayerDomainId = uint32(config.readUint(".xlayerDomainId"));
+
+        usds  = config.readAddress(".usds");
+        susds = config.readAddress(".susds");
+    }
 
     function _onboardFacets() internal override {
         _onboardCCTPFacet();
@@ -153,8 +182,8 @@ contract ConfigureSparkPAUStagingFullMainnet is ConfigureSparkPAUStagingFullBase
     function _onboardCCTPFacet() internal {
         // Set domain parameters
         controller.cctp_setDomainParameters(
-            XLAYER_DOMAIN_ID,
-            bytes32(uint256(uint160(XLAYER_ALM_PROXY))),
+            xlayerDomainId,
+            bytes32(uint256(uint160(xlayerAlmProxy))),
             0,
             100
         );
@@ -163,7 +192,7 @@ contract ConfigureSparkPAUStagingFullMainnet is ConfigureSparkPAUStagingFullBase
         rateLimits.setRateLimitData(controller.cctp_toCCTPRateLimitKey(), 10e6, uint256(100e6) / 1 hours);
 
         rateLimits.setRateLimitData(
-            controller.cctp_getToDomainRateLimitKey(XLAYER_DOMAIN_ID),
+            controller.cctp_getToDomainRateLimitKey(xlayerDomainId),
             10e6,
             uint256(100e6) / 1 hours
         );
@@ -184,26 +213,40 @@ contract ConfigureSparkPAUStagingFullMainnet is ConfigureSparkPAUStagingFullBase
     }
 
     function _onboardERC4626Facet() internal {
-        bytes32 depositKey  = controller.erc4626_getDepositRateLimitKey(Ethereum.SUSDS, Ethereum.USDS);
-        bytes32 withdrawKey = controller.erc4626_getWithdrawRateLimitKey(Ethereum.SUSDS);
+        bytes32 depositKey  = controller.erc4626_getDepositRateLimitKey(susds, usds);
+        bytes32 withdrawKey = controller.erc4626_getWithdrawRateLimitKey(susds);
 
         rateLimits.setRateLimitData(depositKey,  10e18, uint256(100e18) / 1 hours);
         rateLimits.setRateLimitData(withdrawKey, 10e18, uint256(100e18) / 1 hours);
 
         controller.erc4626_setMaxExchangeRate(
-            Ethereum.SUSDS,
-            IERC4626Like(Ethereum.SUSDS).convertToShares(1e18),
+            susds,
+            IERC4626Like(susds).convertToShares(1e18),
             1.2e18
         );
     }
 
 }
 
-contract ConfigureSparkPAUStagingFullXLayer is ConfigureSparkPAUStagingFullBase {
+contract ConfigureSparkPAUFullXLayer is ConfigureSparkPAUFullBase {
 
-    address internal constant ETHEREUM_ALM_PROXY = 0xFB2252689E3a9c5d89cBBb65a174dba1163a8f19;
-    address internal constant SPUSDC             = 0xaAd950768f584Bc31501bf6357f9205D4F3f2BE3;
-    address internal constant USDC               = 0x74b7F16337b8972027F6196A17a631aC6dE26d22;
+    using stdJson for string;
+
+    address internal ethereumAlmProxy;
+    uint32  internal ethereumDomainId;
+
+    address internal usdc;
+    address internal spusdc;
+
+    function run() public override {
+        super.run();
+
+        ethereumAlmProxy = config.readAddress(".ethereumAlmProxy");
+        ethereumDomainId = uint32(config.readUint(".ethereumDomainId"));
+
+        usdc   = config.readAddress(".usdc");
+        spusdc = config.readAddress(".spusdc");
+    }
 
     function _onboardFacets() internal override {
         _onboardCCTPFacet();
@@ -214,8 +257,8 @@ contract ConfigureSparkPAUStagingFullXLayer is ConfigureSparkPAUStagingFullBase 
     function _onboardCCTPFacet() internal {
         // Set domain parameters
         controller.cctp_setDomainParameters(
-            CCTPv2Forwarder.DOMAIN_ID_CIRCLE_ETHEREUM,
-            bytes32(uint256(uint160(ETHEREUM_ALM_PROXY))),
+            ethereumDomainId,
+            bytes32(uint256(uint160(ethereumAlmProxy))),
             0,
             100
         );
@@ -224,7 +267,7 @@ contract ConfigureSparkPAUStagingFullXLayer is ConfigureSparkPAUStagingFullBase 
         rateLimits.setRateLimitData(controller.cctp_toCCTPRateLimitKey(), 10e6, uint256(100e6) / 1 hours);
 
         rateLimits.setRateLimitData(
-            controller.cctp_getToDomainRateLimitKey(CCTPv2Forwarder.DOMAIN_ID_CIRCLE_ETHEREUM),
+            controller.cctp_getToDomainRateLimitKey(ethereumDomainId),
             10e6,
             uint256(100e6) / 1 hours
         );
@@ -232,7 +275,7 @@ contract ConfigureSparkPAUStagingFullXLayer is ConfigureSparkPAUStagingFullBase 
 
     function _onboardTransferAssetFacet() internal {
         rateLimits.setRateLimitData(
-            controller.transferAsset_getTransferRateLimitKey(USDC, SPUSDC),
+            controller.transferAsset_getTransferRateLimitKey(usdc, spusdc),
             10e6,
             uint256(100e6) / 1 hours
         );
@@ -240,9 +283,9 @@ contract ConfigureSparkPAUStagingFullXLayer is ConfigureSparkPAUStagingFullBase 
 
     function _onboardSparkVaultFacet() internal {
         rateLimits.setRateLimitData(
-            controller.sparkVault_getTakeRateLimitKey(Ethereum.SUSDS),
-            10e18,
-            uint256(100e18) / 1 hours
+            controller.sparkVault_getTakeRateLimitKey(spusdc),
+            10e6,
+            uint256(100e6) / 1 hours
         );
     }
 
