@@ -7,6 +7,7 @@ import { VmSafe } from "../lib/forge-std/src/Vm.sol";
 import { IAccessControl }                            from "../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
 import { IAccessControls }                           from "../lib/diamond-pau/src/interfaces/IAccessControls.sol";
 import { IALMProxy }                                 from "../lib/diamond-pau/src/interfaces/IALMProxy.sol";
+import { IPAUFactory }                               from "../lib/diamond-pau/src/interfaces/IPAUFactory.sol";
 import { IBeacon }                                   from "../lib/diamond-pau/src/interfaces/IBeacon.sol";
 import { ICCTPFacet }                                from "../lib/diamond-pau/src/facets/cctp/ICCTPFacet.sol";
 import { Initializable }                             from "../lib/diamond-pau/lib/oz-upgradeable/contracts/proxy/utils/Initializable.sol";
@@ -14,11 +15,16 @@ import { IEnumerableIntegrations as IEI }            from "../lib/diamond-pau/sr
 import { IMainnetControllerFull as IControllerFull } from "../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
 import { IRateLimits }                               from "../lib/diamond-pau/src/interfaces/IRateLimits.sol";
 
-import { IAdministeredAgent } from "../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
+import { IERC4626Facet } from "../lib/diamond-pau/src/facets/erc4626/IERC4626Facet.sol";
 
-interface IPAUFactoryLike {
+import { IAdministeredAgent }        from "../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
+import { IAdministeredAgentFactory } from "../lib/pau-administered-agent/src/interfaces/IAdministeredAgentFactory.sol";
 
-    function beacon() external view returns (address);
+interface IDefaultPAUAssemblerLike {
+
+    function pauFactory() external view returns (address);
+
+    function administeredAgentFactory() external view returns (address);
 
 }
 
@@ -28,14 +34,65 @@ abstract contract PostDeployTestBase is Test {
     bytes32 internal constant ALLOCATOR_ROLE     = keccak256("ALLOCATOR_ROLE");
     bytes32 internal constant CONTROLLER_ROLE    = keccak256("CONTROLLER");
 
-    bytes32 internal constant CCTP_FACET_ID = bytes32(abi.encodePacked("CCTP_FACET"));
+    IDefaultPAUAssemblerLike  internal assembler;
+    IAdministeredAgentFactory internal agentFactory;
+    IBeacon                   internal beacon;
+    IPAUFactory               internal pauFactory;
 
     IAccessControls    internal accessControls;
     IAdministeredAgent internal administeredAgent;
     IALMProxy          internal almProxy;
-    IBeacon            internal beacon;
     IControllerFull    internal controller;
     IRateLimits        internal rateLimits;
+
+    address internal admin;
+    address internal deployer;
+
+    function setUp() public virtual {
+        _setUpXLayerAndRobinhoodForks();
+    }
+
+    function _setUpAddresses(
+        address _agentFactory,
+        address _assembler,
+        address _beacon,
+        address _pauFactory,
+        address _accessControls,
+        address _administeredAgent,
+        address _almProxy,
+        address _controller,
+        address _rateLimits,
+        address _admin,
+        address _deployer
+    ) internal {
+        agentFactory = IAdministeredAgentFactory(_agentFactory);
+        assembler    = IDefaultPAUAssemblerLike(_assembler);
+        beacon       = IBeacon(_beacon);
+        pauFactory   = IPAUFactory(_pauFactory);
+
+        accessControls    = IAccessControls(_accessControls);
+        administeredAgent = IAdministeredAgent(_administeredAgent);
+        almProxy          = IALMProxy(_almProxy);
+        controller        = IControllerFull(_controller);
+        rateLimits        = IRateLimits(_rateLimits);
+
+        admin    = _admin;
+        deployer = _deployer;
+    }
+
+    function _setUpXLayerAndRobinhoodForks() internal {
+        setChain("xlayer", ChainData({
+            name    : "XLayer",
+            rpcUrl  : vm.envOr("XLAYER_RPC_URL", string("")),
+            chainId : 196
+        }));
+
+        setChain("robinhood_chain", ChainData({
+            name    : "Robinhood Chain",
+            rpcUrl  : vm.envOr("RH_RPC_URL", string("")),
+            chainId : 4663
+        }));
+    }
 
     /**********************************************************************************************/
     /*** Get events helpers                                                                     ***/
@@ -183,6 +240,17 @@ abstract contract PostDeployTestBase is Test {
         assertEq(loggedMaxFeeCapRate, maxFeeCapRate);
     }
 
+    function _assertERC4626MaxExchangeRateSetEvent(
+        VmSafe.EthGetLogs memory log,
+        address                  token,
+        uint256                  maxExchangeRate
+    ) internal pure {
+        assertEq(log.topics[0],             IERC4626Facet.ERC4626MaxExchangeRateSet.selector);
+        assertEq(_toAddress(log.topics[1]), token);
+
+        assertEq(abi.decode(log.data, (uint256)), maxExchangeRate);
+    }
+
     function _assertInitializedEvent(VmSafe.EthGetLogs memory log) internal pure {
         assertEq(log.topics[0], Initializable.Initialized.selector);
         assertEq(log.data,      abi.encode(1));
@@ -246,6 +314,86 @@ abstract contract PostDeployTestBase is Test {
         assertEq(log.topics[1],             role);
         assertEq(_toAddress(log.topics[2]), account);
         assertEq(_toAddress(log.topics[3]), sender);
+    }
+
+    function _assertAdminAddedEvent(
+        VmSafe.EthGetLogs memory log,
+        address                  account,
+        address                  caller
+    ) internal pure {
+        assertEq(log.topics[0],             IAdministeredAgent.AdminAdded.selector);
+        assertEq(_toAddress(log.topics[1]), account);
+        assertEq(_toAddress(log.topics[2]), caller);
+    }
+
+    function _assertAdminRemovedEvent(
+        VmSafe.EthGetLogs memory log,
+        address                  account,
+        address                  caller
+    ) internal pure {
+        assertEq(log.topics[0],             IAdministeredAgent.AdminRemoved.selector);
+        assertEq(_toAddress(log.topics[1]), account);
+        assertEq(_toAddress(log.topics[2]), caller);
+    }
+
+    function _assertActorAddedEvent(
+        VmSafe.EthGetLogs memory log,
+        address                  account,
+        address                  caller
+    ) internal pure {
+        assertEq(log.topics[0],             IAdministeredAgent.ActorAdded.selector);
+        assertEq(_toAddress(log.topics[1]), account);
+        assertEq(_toAddress(log.topics[2]), caller);
+    }
+
+    function _assertActorRemovedEvent(
+        VmSafe.EthGetLogs memory log,
+        address                  account,
+        address                  caller
+    ) internal pure {
+        assertEq(log.topics[0],             IAdministeredAgent.ActorRemoved.selector);
+        assertEq(_toAddress(log.topics[1]), account);
+        assertEq(_toAddress(log.topics[2]), caller);
+    }
+
+    function _assertGrantorAddedEvent(
+        VmSafe.EthGetLogs memory log,
+        address                  account,
+        address                  caller
+    ) internal pure {
+        assertEq(log.topics[0],             IAdministeredAgent.GrantorAdded.selector);
+        assertEq(_toAddress(log.topics[1]), account);
+        assertEq(_toAddress(log.topics[2]), caller);
+    }
+
+    function _assertGrantorRemovedEvent(
+        VmSafe.EthGetLogs memory log,
+        address                  account,
+        address                  caller
+    ) internal pure {
+        assertEq(log.topics[0],             IAdministeredAgent.GrantorRemoved.selector);
+        assertEq(_toAddress(log.topics[1]), account);
+        assertEq(_toAddress(log.topics[2]), caller);
+    }
+
+    function _assertRevokerAddedEvent(
+        VmSafe.EthGetLogs memory log,
+        address                  account,
+        address                  caller
+    ) internal pure {
+        assertEq(log.topics[0],             IAdministeredAgent.RevokerAdded.selector);
+        assertEq(_toAddress(log.topics[1]), account);
+        assertEq(_toAddress(log.topics[2]), caller);
+    }
+
+    function _assertRevokerRemovedEvent(
+        VmSafe.EthGetLogs memory log,
+        address                  account,
+        address                  caller
+    ) internal pure {
+        assertEq(log.topics[0],             IAdministeredAgent.RevokerRemoved.selector);
+        assertEq(_toAddress(log.topics[1]), account);
+        assertEq(_toAddress(log.topics[2]), caller);
     }
 
 }
