@@ -234,8 +234,8 @@ contract ConfigureSparkPAUFullMainnet is ConfigureSparkPAUFullBase {
         bytes32 depositKey  = controller.erc4626_getDepositRateLimitKey(susdc, usdc);
         bytes32 withdrawKey = controller.erc4626_getWithdrawRateLimitKey(susdc);
 
-        rateLimits.setRateLimitData(depositKey,  10e18, uint256(100e18) / 1 hours);
-        rateLimits.setRateLimitData(withdrawKey, 10e18, uint256(100e18) / 1 hours);
+        rateLimits.setRateLimitData(depositKey,  10e6, uint256(100e6) / 1 hours);
+        rateLimits.setRateLimitData(withdrawKey, 10e6, uint256(100e6) / 1 hours);
 
         controller.erc4626_setMaxExchangeRate(
             susdc,
