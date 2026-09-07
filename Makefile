@@ -2,23 +2,27 @@
 #
 # Prerequisites:
 #   - ETH_FROM: deployer address
-#   - {MAINNET,BASE,AVALANCHE}_RPC_URL: chain RPC URLs
-#   - {MAINNET,BASESCAN,SNOWTRACE}_API_KEY: per-chain Etherscan keys (for --verify)
+#   - MAINNET_RPC_URL, XLAYER_RPC_URL, RH_RPC_URL: chain RPC URLs
+#   - MAINNET_API_KEY: Etherscan key, used by --verify on mainnet
 #   - ETHERSCAN_API_KEY: used by the post-deploy event tests
 #   - foundry keystore account named "deployer" (cast wallet import deployer --interactive)
 #
 # Deployment variants:
-#   full:     deploys its own ALMProxy and wires the CONTROLLER role on it
-#   parallel: attaches to the existing ALMProxy from spark-address-registry; granting CONTROLLER
-#             on that proxy to the new controller is a governance spell action
+#   full: the default PAU assembler deploys the whole stack (ALMProxy, AccessControls, RateLimits,
+#         Controller, AdministeredAgent) in a single call and wires the integrations
 #
-# Deployment order (per variant + chain + env):
-#   1. deploy    — deploys AccessControls, RateLimits (both with the `admin` from the deploy input
-#                  as admin), Controller and AdministeredAgent
-#   2. configure — staging only; needs controller + administeredAgent pasted into
-#                  script/input/{chainId}/config-mainnet-staging.json.
-#                  Production is configured by a governance spell, not by this repo, so the deploy
-#                  input for production sets `admin` to SPARK_PROXY directly.
+# Deployment order (per chain + env):
+#   1. deploy    — calls DefaultPAUAssembler.deploy with the integration ids, admin config and
+#                  allocator agent config. The `admin` in the deploy input is the deployer, so that
+#                  the configure step below can still run.
+#                  Input:  script/input/{chainId}/deploy-pau-with-assembler-{chain}-{env}.json
+#                  Output: script/output/{chainId}/deploy-pau-with-assembler-{chain}-{env}-{ts}.json
+#   2. configure — onboards each facet (rate limits, CCTP domain parameters, ERC4626 max exchange
+#                  rate), then grants the admin roles to `admin` and revokes them from `deployer`.
+#                  Input: script/input/{chainId}/config-pau-with-assembler-{chain}-{env}.json
+#
+# Both scripts are selected by CHAIN and ENV. Every value they write is read from the input files;
+# keys prefixed with an underscore in those files are documentation only.
 
 # --------------------------------------------------------------------------------------------------
 # Build & Test                                                                                     #
@@ -33,71 +37,80 @@ test:
 clean:
 	forge clean
 
-# Post deploy tests assert the end state of a deployment that has already been run. Only the two
-# staging stacks that exist have tests: mainnet parallel and xlayer full.
-# XLayer has state assertions only, the Etherscan v2 log endpoint does not cover chain 196.
+# --------------------------------------------------------------------------------------------------
+# Post deploy tests                                                                                #
+# --------------------------------------------------------------------------------------------------
+# Assert the end state of a deployment that has already been deployed AND configured. There is one
+# file per chain, holding one contract per environment; adding an environment or a chain means
+# adding a contract or a file, never a new assertion.
+#
+# Mainnet asserts state and events. X Layer asserts state only, the Etherscan v2 log endpoint does
+# not cover chain 196.
 
-test-postdeploy-mainnet-parallel-staging:
-	forge test --match-path "test/parallel-pau/mainnet/PostStagingDeployMainnetParallel.t.sol" -vvv
+test-postdeploy: test-postdeploy-mainnet-full test-postdeploy-xlayer-full
+
+test-postdeploy-mainnet-full:
+	forge test --match-path "test/full-pau/mainnet/PostDeployTests.t.sol" -vvv
+
+test-postdeploy-mainnet-full-staging:
+	forge test --match-contract "MainnetPostDeployTestsStaging" -vvv
+
+test-postdeploy-xlayer-full:
+	forge test --match-path "test/full-pau/xlayer/PostDeployTests.t.sol" -vvv
 
 test-postdeploy-xlayer-full-staging:
-	forge test --match-path "test/full-pau/xlayer/PostStagingDeployXLayerFull.t.sol" -vvv
+	forge test --match-contract "XLayerPostDeployTestsStaging" -vvv
 
 # --------------------------------------------------------------------------------------------------
-# Deploy: AccessControls + RateLimits + Controller + AdministeredAgent                             #
+# Deploy: ALMProxy + AccessControls + RateLimits + Controller + AdministeredAgent                  #
 # --------------------------------------------------------------------------------------------------
-# Deploys AccessControls, RateLimits and AdministeredAgent (with `admin` as admin on all three) and
-# a Controller wired to the Sky PAU beacon and the new RateLimits plus the Spark ALMProxy from
-# spark-address-registry.
-# For staging, `admin` is the deployer so that the configure script below can still run; for
-# production, `admin` is SPARK_PROXY.
-# Input:  script/input/{chainId}/deploy-{chain}-{env}.json (chainId, admin, deployer)
-# Output: script/output/{chainId}/deploy-{chain}-{env}-{timestamp}.json
-#         (accessControls, administeredAgent, controller, rateLimits)
 
 # Mainnet
 
-deploy-mainnet-full-production:
-	CHAIN=mainnet ENV=production forge script \
-		script/full-pau/0-DeploySparkPAUFull.s.sol:DeploySparkPAUFull \
-		--sender $(ETH_FROM) --account deployer --broadcast --verify --rpc-url $(MAINNET_RPC_URL)
-
 deploy-mainnet-full-staging:
 	CHAIN=mainnet ENV=staging forge script \
-		script/full-pau/0-DeploySparkPAUFull.s.sol:DeploySparkPAUFull \
+		script/full-pau/0-DeploySparkPAUFull.s.sol:DeploySparkPAUFullMainnet \
 		--sender $(ETH_FROM) --account deployer --broadcast --verify --rpc-url $(MAINNET_RPC_URL)
 
-deploy-mainnet-parallel-production:
+deploy-mainnet-full-production:
 	CHAIN=mainnet ENV=production forge script \
-		script/parallel-pau/0-DeploySparkPAUParallel.s.sol:DeploySparkPAUParallel \
+		script/full-pau/0-DeploySparkPAUFull.s.sol:DeploySparkPAUFullMainnet \
 		--sender $(ETH_FROM) --account deployer --broadcast --verify --rpc-url $(MAINNET_RPC_URL)
 
-deploy-mainnet-parallel-staging:
-	CHAIN=mainnet ENV=staging forge script \
-		script/parallel-pau/0-DeploySparkPAUParallel.s.sol:DeploySparkPAUParallel \
-		--sender $(ETH_FROM) --account deployer --broadcast --verify --rpc-url $(MAINNET_RPC_URL)
+# X Layer
+# No --verify: foundry.toml has no Etherscan configuration for chain 196.
+
+deploy-xlayer-full-staging:
+	CHAIN=xlayer ENV=staging forge script \
+		script/full-pau/0-DeploySparkPAUFull.s.sol:DeploySparkPAUFullXLayer \
+		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(XLAYER_RPC_URL)
+
+deploy-xlayer-full-production:
+	CHAIN=xlayer ENV=production forge script \
+		script/full-pau/0-DeploySparkPAUFull.s.sol:DeploySparkPAUFullXLayer \
+		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(XLAYER_RPC_URL)
 
 # --------------------------------------------------------------------------------------------------
 # Configure: Controller + AccessControls + AdministeredAgent + RateLimits                          #
 # --------------------------------------------------------------------------------------------------
-# Registers the CCTP integration on the controller, grants ALLOCATOR_ROLE to the AdministeredAgent,
-# wires the relayer / backstop relayer / freezer multisigs onto the AdministeredAgent, grants the
-# CONTROLLER role on RateLimits to the controller, then hands AccessControls, the AdministeredAgent
-# and RateLimits over to `admin` and drops the deployer.
-# RateLimits and AccessControls are read from the controller, so they need no config entry.
-# Input: script/input/{chainId}/config-mainnet-staging.json
-#        (chainId, admin, administeredAgent, controller, deployer)
+# Onboards the facets and hands the stack from the deployer to `admin`. Needs the deployed
+# controller and allocator agent pasted into the config input first.
 #
-# Staging only - production is configured by a governance spell.
-# Run AFTER deploy.
-# Mainnet
+# Run AFTER deploy. Staging only: production is configured by a governance spell.
 
 configure-mainnet-full-staging:
-	CHAIN=mainnet forge script \
-		script/full-pau/1-ConfigureSparkPAUStagingFull.s.sol:ConfigureSparkPAUStagingFull \
+	CHAIN=mainnet ENV=staging forge script \
+		script/full-pau/1-ConfigureSparkPAUFull.s.sol:ConfigureSparkPAUFullMainnet \
 		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(MAINNET_RPC_URL)
 
-configure-mainnet-parallel-staging:
-	CHAIN=mainnet forge script \
-		script/parallel-pau/1-ConfigureSparkPAUStagingParallel.s.sol:ConfigureSparkPAUStagingParallel \
-		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(MAINNET_RPC_URL)
+configure-xlayer-full-staging:
+	CHAIN=xlayer ENV=staging forge script \
+		script/full-pau/1-ConfigureSparkPAUFull.s.sol:ConfigureSparkPAUFullXLayer \
+		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(XLAYER_RPC_URL)
+
+.PHONY: build test clean \
+	test-postdeploy test-postdeploy-mainnet-full test-postdeploy-mainnet-full-staging \
+	test-postdeploy-xlayer-full test-postdeploy-xlayer-full-staging \
+	deploy-mainnet-full-staging deploy-mainnet-full-production \
+	deploy-xlayer-full-staging deploy-xlayer-full-production \
+	configure-mainnet-full-staging configure-xlayer-full-staging
