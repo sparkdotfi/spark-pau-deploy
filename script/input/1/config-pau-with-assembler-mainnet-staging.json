@@ -1,0 +1,10 @@
+{
+  "_info": "Spark Mainnet Staging controller configuration.",
+
+  "chainId": 1,
+
+  "admin": "0xb52991d5d29f371f493910c36f5A849b3748Cc28",
+  "administeredAgent": "0x8d165c44a8043C578fAA9fb35B99d324A7F83943",
+  "controller": "0xB87A3680f5957AB3dC5F26d77b59326C267683a4",
+  "deployer": "0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f"
+}
