@@ -4,6 +4,7 @@
   "chainId": 196,
 
   "admin": "0xb52991d5d29f371f493910c36f5A849b3748Cc28",
+  "beacon": "0x13B471908224B25f15a16D1e3F44a9F99E8b5aD5",
   "administeredAgent": "0xcF9F6Cb0a94aAfe367F2F0Dac0EE86e033abc4E0",
   "controller": "0x32b845F472f61b023b1bd77f2E0fb2b3F9db2053",
   "deployer": "0x23d43f3189Ab9CEBfFcC0352C0490387e3105FB3",

@@ -37,6 +37,16 @@ interface IALMProxyLike {
 
 }
 
+interface IBeaconLike {
+
+    function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
+
+    function grantRole(bytes32 role, address account) external;
+
+    function revokeRole(bytes32 role, address account) external;
+
+}
+
 interface ISparkVaultLike {
 
     function TAKER_ROLE() external view returns (bytes32);
@@ -63,6 +73,8 @@ abstract contract ConfigureSparkPAUFullBase is Script {
 
     using stdJson     for string;
     using ScriptTools for string;
+
+    IBeaconLike internal beacon;
 
     IAccessControlsLike    internal accessControls;
     IALMProxyLike          internal almProxy;
@@ -97,6 +109,8 @@ abstract contract ConfigureSparkPAUFullBase is Script {
         accessControls    = IAccessControlsLike(controller.accessControls());
         administeredAgent = IAdministeredAgentLike(config.readAddress(".administeredAgent"));
 
+        beacon = IBeaconLike(config.readAddress(".beacon"));
+
         admin    = config.readAddress(".admin");
         deployer = config.readAddress(".deployer");
 
@@ -127,6 +141,8 @@ abstract contract ConfigureSparkPAUFullBase is Script {
 
     function _transferAdminRoles() internal {
         // Grant admin roles to admin
+        beacon.grantRole(beacon.DEFAULT_ADMIN_ROLE(), admin);
+
         accessControls.grantRole(accessControls.DEFAULT_ADMIN_ROLE(), admin);
         almProxy.grantRole(almProxy.DEFAULT_ADMIN_ROLE(),             admin);
         rateLimits.grantRole(rateLimits.DEFAULT_ADMIN_ROLE(),         admin);
@@ -134,6 +150,8 @@ abstract contract ConfigureSparkPAUFullBase is Script {
         administeredAgent.addAdmin(admin);
 
         // Revoke admin roles from deployer
+        beacon.revokeRole(beacon.DEFAULT_ADMIN_ROLE(), deployer);
+
         accessControls.revokeRole(accessControls.DEFAULT_ADMIN_ROLE(), deployer);
         almProxy.revokeRole(almProxy.DEFAULT_ADMIN_ROLE(),             deployer);
         rateLimits.revokeRole(rateLimits.DEFAULT_ADMIN_ROLE(),         deployer);
@@ -164,15 +182,15 @@ contract ConfigureSparkPAUFullMainnet is ConfigureSparkPAUFullBase {
     address internal xlayerAlmProxy;
     uint32  internal xlayerDomainId;
 
-    address internal usds;
-    address internal susds;
+    address internal usdc;
+    address internal susdc;
 
     function _onboardFacets() internal override {
         xlayerAlmProxy = config.readAddress(".xlayerAlmProxy");
         xlayerDomainId = uint32(config.readUint(".xlayerDomainId"));
 
-        usds  = config.readAddress(".usds");
-        susds = config.readAddress(".susds");
+        usdc  = config.readAddress(".usdc");
+        susdc = config.readAddress(".susdc");
 
         _onboardCCTPFacet();
         _onboardPSMFacet();
@@ -213,15 +231,15 @@ contract ConfigureSparkPAUFullMainnet is ConfigureSparkPAUFullBase {
     }
 
     function _onboardERC4626Facet() internal {
-        bytes32 depositKey  = controller.erc4626_getDepositRateLimitKey(susds, usds);
-        bytes32 withdrawKey = controller.erc4626_getWithdrawRateLimitKey(susds);
+        bytes32 depositKey  = controller.erc4626_getDepositRateLimitKey(susdc, usdc);
+        bytes32 withdrawKey = controller.erc4626_getWithdrawRateLimitKey(susdc);
 
         rateLimits.setRateLimitData(depositKey,  10e18, uint256(100e18) / 1 hours);
         rateLimits.setRateLimitData(withdrawKey, 10e18, uint256(100e18) / 1 hours);
 
         controller.erc4626_setMaxExchangeRate(
-            susds,
-            ISparkVaultLike(susds).convertToShares(1e18),
+            susdc,
+            ISparkVaultLike(susdc).convertToShares(1e18),
             1.2e18
         );
     }
