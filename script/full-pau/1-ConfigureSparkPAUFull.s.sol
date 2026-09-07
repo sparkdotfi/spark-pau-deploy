@@ -37,7 +37,11 @@ interface IALMProxyLike {
 
 }
 
-interface IERC4626Like {
+interface ISparkVaultLike {
+
+    function TAKER_ROLE() external view returns (bytes32);
+
+    function grantRole(bytes32 role, address account) external;
 
     function convertToShares(uint256 assets) external view returns (uint256 shares);
 
@@ -217,7 +221,7 @@ contract ConfigureSparkPAUFullMainnet is ConfigureSparkPAUFullBase {
 
         controller.erc4626_setMaxExchangeRate(
             susds,
-            IERC4626Like(susds).convertToShares(1e18),
+            ISparkVaultLike(susds).convertToShares(1e18),
             1.2e18
         );
     }
@@ -274,6 +278,8 @@ contract ConfigureSparkPAUFullXLayer is ConfigureSparkPAUFullBase {
     }
 
     function _onboardSparkVaultFacet() internal {
+        ISparkVaultLike(spusdc).grantRole(ISparkVaultLike(spusdc).TAKER_ROLE(), address(almProxy));
+
         rateLimits.setRateLimitData(
             controller.sparkVault_getTakeRateLimitKey(spusdc),
             10e6,
