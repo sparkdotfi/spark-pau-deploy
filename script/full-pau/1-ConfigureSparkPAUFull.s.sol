@@ -49,9 +49,13 @@ interface IBeaconLike {
 
 interface ISparkVaultLike {
 
+    function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
+
     function TAKER_ROLE() external view returns (bytes32);
 
     function grantRole(bytes32 role, address account) external;
+
+    function revokeRole(bytes32 role, address account) external;
 
     function convertToShares(uint256 assets) external view returns (uint256 shares);
 
@@ -128,7 +132,7 @@ abstract contract ConfigureSparkPAUFullBase is Script {
 
         _transferAdminRoles();
 
-        console2.log("Deployer removed as admin of AccessControls, AdministeredAgent, RateLimits and ALMProxy");
+        console2.log("Deployer removed as admin of Beacon, AccessControls, AdministeredAgent, RateLimits and ALMProxy");
 
         vm.stopBroadcast();
     }
