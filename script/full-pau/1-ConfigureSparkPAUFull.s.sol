@@ -306,3 +306,39 @@ contract ConfigureSparkPAUFullXLayer is ConfigureSparkPAUFullBase {
     }
 
 }
+
+contract TransferXLayerVaultAdmin is Script {
+
+    using stdJson for string;
+
+    function run() public {
+
+        string memory chain = "xlayer";
+
+        vm.createSelectFork("https://rpc.xlayer.tech");
+
+        vm.setEnv("FOUNDRY_ROOT_CHAINID", vm.toString(block.chainid));
+
+        string memory env      = vm.envString("ENV");
+        string memory fileSlug = string(abi.encodePacked("config-pau-with-assembler-", chain, "-", env));
+
+        string memory config = ScriptTools.loadConfig(fileSlug);
+
+        address spusdc   = config.readAddress(".spusdc");
+        address admin    = config.readAddress(".admin");
+        address deployer = config.readAddress(".deployer");
+
+        require(block.chainid == config.readUint(".chainId"), "TransferXLayerVaultAdmin/invalid-chain-id");
+        require(admin != deployer,                            "TransferXLayerVaultAdmin/admin-is-deployer");
+
+        vm.startBroadcast();
+
+        ISparkVaultLike(spusdc).grantRole(ISparkVaultLike(spusdc).DEFAULT_ADMIN_ROLE(),  admin);
+        ISparkVaultLike(spusdc).revokeRole(ISparkVaultLike(spusdc).DEFAULT_ADMIN_ROLE(), deployer);
+
+        vm.stopBroadcast();
+
+        console2.log("Transferred admin role from deployer to admin for XLayer Vault");
+    }
+
+}
