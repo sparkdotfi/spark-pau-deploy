@@ -1,0 +1,175 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+pragma solidity ^0.8.34;
+
+import { stdJson }  from "../../../lib/forge-std/src/StdJson.sol";
+
+import { IEnumerableIntegrations as IEI } from "../../../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
+
+import { PostDeployTestBase } from "../../PostDeployTestBase.t.sol";
+
+interface ISparkVaultLike {
+
+    function TAKER_ROLE() external view returns (bytes32);
+
+    function hasRole(bytes32 role, address account) external view returns (bool);
+
+}
+
+abstract contract XLayerPostDeployTestsBase is PostDeployTestBase {
+
+    bytes32 internal constant CCTP_FACET_ID           = "CCTP_FACET";
+    bytes32 internal constant TRANSFER_ASSET_FACET_ID = "TRANSFER_ASSET_FACET";
+    bytes32 internal constant SPARK_VAULT_FACET_ID    = "SPARK_VAULT_FACET";
+
+    uint32 internal constant ETHEREUM_CCTP_DOMAIN = 0;
+
+    address internal constant USDC = 0xB6CEceAB302E2E4948951eE7843FC24E92933061;
+
+    address internal ETHEREUM_CCTP_MINT_RECIPIENT;
+
+    uint32  internal CCTP_MIN_FEE_CAP_RATE;
+    uint32  internal CCTP_MAX_FEE_CAP_RATE;
+
+    uint256 internal CCTP_USDC_MAX_AMOUNT;
+    uint256 internal CCTP_USDC_SLOPE;
+    uint256 internal TRANSFER_ASSET_USDC_MAX_AMOUNT;
+    uint256 internal TRANSFER_ASSET_USDC_SLOPE;
+
+    address internal SPUSDC;
+
+    uint256 internal SPARK_VAULT_USDC_MAX_AMOUNT;
+    uint256 internal SPARK_VAULT_USDC_SLOPE;
+
+    function setUp() public virtual override {
+        super.setUp();
+
+        vm.createSelectFork(getChain("xlayer").rpcUrl, _getBlock());
+    }
+
+    function _getBlock() internal virtual pure returns (uint256) {
+        return 0;
+    }
+
+    function test_administeredAgentState() external view {
+        _assertAdministeredAgentState(relayer, freezer);
+    }
+
+    function test_accessControlsState() external view {
+        _assertAccessControlsState();
+    }
+
+    function test_almProxyState() external view {
+        _assertALMProxyState();
+    }
+
+    function test_rateLimitsState() external view {
+        _assertRateLimitsState();
+    }
+
+    function test_controllerState() external view {
+        _assertControllerState();
+    }
+
+    function test_rateLimitsAndControllerOnboardingState() external view {
+        // 0. Controller Integrations
+        IEI.Integration[] memory integrations = controller.integrations();
+
+        assertEq(integrations.length, 3);
+
+        assertEq(integrations[0].id, CCTP_FACET_ID);
+        assertEq(integrations[1].id, TRANSFER_ASSET_FACET_ID);
+        assertEq(integrations[2].id, SPARK_VAULT_FACET_ID);
+
+        for (uint256 i = 0; i < integrations.length; i++) {
+            _assertIntegration(integrations[i].id);
+        }
+
+        // 1. CCTP facet onboarding
+
+        // 1a. Controller state
+        (
+            bytes32 mintRecipient,
+            uint32  minFeeCapRate,
+            uint32  maxFeeCapRate
+        ) = controller.cctp_getDomainParameters(ETHEREUM_CCTP_DOMAIN);
+
+        assertEq(mintRecipient, bytes32(uint256(uint160(ETHEREUM_CCTP_MINT_RECIPIENT))));
+        assertEq(minFeeCapRate, CCTP_MIN_FEE_CAP_RATE);
+        assertEq(maxFeeCapRate, CCTP_MAX_FEE_CAP_RATE);
+
+        // 1b. Rate limits state
+
+        _assertRateLimitData(controller.cctp_toCCTPRateLimitKey(),                          CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
+        _assertRateLimitData(controller.cctp_getToDomainRateLimitKey(ETHEREUM_CCTP_DOMAIN), CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
+
+        // 2. TransferAsset facet onboarding
+
+        // 2a. Controller state (No controller state changes to assert, the transferred asset is
+        //     the USDC that the CCTP facet mints on this chain)
+        assertEq(controller.cctp_usdc(), USDC);
+
+        // 2b. Rate limits state
+
+        _assertRateLimitData(controller.transferAsset_getTransferRateLimitKey(USDC, SPUSDC), TRANSFER_ASSET_USDC_MAX_AMOUNT, TRANSFER_ASSET_USDC_SLOPE);
+
+        // 3. SparkVault facet onboarding
+
+        // 3a. Spark vault state
+        assertEq(ISparkVaultLike(SPUSDC).hasRole(ISparkVaultLike(SPUSDC).TAKER_ROLE(), address(almProxy)), true);
+
+        // 3b. Rate limits state
+
+        _assertRateLimitData(controller.sparkVault_getTakeRateLimitKey(SPUSDC), SPARK_VAULT_USDC_MAX_AMOUNT, SPARK_VAULT_USDC_SLOPE);
+    }
+
+}
+
+contract XLayerPostDeployTestsStaging is XLayerPostDeployTestsBase {
+
+    using stdJson for string;
+
+    function setUp() public override {
+        super.setUp();
+
+        string memory json = vm.readFile("deployments/xlayer-staging.json");
+
+        // CCTP facet onboarding.
+        ETHEREUM_CCTP_MINT_RECIPIENT = 0xFB2252689E3a9c5d89cBBb65a174dba1163a8f19;
+
+        CCTP_MIN_FEE_CAP_RATE = 0;
+        CCTP_MAX_FEE_CAP_RATE = 100;
+        CCTP_USDC_MAX_AMOUNT  = 10e6;
+        CCTP_USDC_SLOPE       = uint256(100e6) / 1 hours;
+
+        // TransferAsset facet onboarding.
+        TRANSFER_ASSET_USDC_MAX_AMOUNT = 10e6;
+        TRANSFER_ASSET_USDC_SLOPE      = uint256(100e6) / 1 hours;
+
+        // SparkVault onboarding.
+        SPUSDC = json.readAddress(".spUSDC");
+
+        SPARK_VAULT_USDC_MAX_AMOUNT = 10e6;
+        SPARK_VAULT_USDC_SLOPE      = uint256(100e6) / 1 hours;
+
+        _setUpAddresses({
+            _agentFactory      : json.readAddress(".agentFactory"),
+            _assembler         : json.readAddress(".defaultPAUAssembler"),
+            _beacon            : json.readAddress(".beacon"),
+            _pauFactory        : json.readAddress(".pauFactory"),
+            _accessControls    : json.readAddress(".accessControls"),
+            _administeredAgent : json.readAddress(".administeredAgent"),
+            _almProxy          : json.readAddress(".proxy"),
+            _controller        : json.readAddress(".controller"),
+            _rateLimits        : json.readAddress(".rateLimits"),
+            _admin             : json.readAddress(".admin"),
+            _deployer          : json.readAddress(".deployer"),
+            _relayer           : json.readAddress(".relayer"),
+            _freezer           : json.readAddress(".freezer")
+        });
+    }
+
+    function _getBlock() internal override pure returns (uint256) {
+        return 70084000;
+    }
+
+}
