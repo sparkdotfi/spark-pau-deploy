@@ -111,23 +111,53 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
 
         assertEq(logs.length, 6);
 
-        //[0] RoleGranted(DEFAULT_ADMIN_ROLE, assembler, pauFactory) : Assembler.deploy()
-        _assertRoleGrantedEvent(logs[0], DEFAULT_ADMIN_ROLE, address(assembler), address(pauFactory));
+        // Grant assembler DEFAULT_ADMIN_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[0],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : address(assembler),
+            sender  : address(pauFactory)
+        });
 
-        //[1] RoleGranted(DEFAULT_ADMIN_ROLE, deployer, assembler) : Assembler.deploy()
-        _assertRoleGrantedEvent(logs[1], DEFAULT_ADMIN_ROLE, deployer, address(assembler));
+        // Grant deployer DEFAULT_ADMIN_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[1],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : deployer,
+            sender  : address(assembler)
+        });
 
-        //[2] RoleGranted(ALLOCATOR_ROLE, administeredAgent, assembler) : Assembler.deploy()
-        _assertRoleGrantedEvent(logs[2], ALLOCATOR_ROLE, address(administeredAgent), address(assembler));
+        // Grant administeredAgent ALLOCATOR_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[2],
+            role    : ALLOCATOR_ROLE,
+            account : address(administeredAgent),
+            sender  : address(assembler)
+        });
 
-        //[3] RoleRevoked(DEFAULT_ADMIN_ROLE, assembler, assembler) : Assembler.deploy()
-        _assertRoleRevokedEvent(logs[3], DEFAULT_ADMIN_ROLE, address(assembler), address(assembler));
+        // Revoke assembler DEFAULT_ADMIN_ROLE
+        _assertRoleRevokedEvent({
+            log     : logs[3],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : address(assembler),
+            sender  : address(assembler)
+        });
 
-        //[4] RoleGranted(DEFAULT_ADMIN_ROLE, admin, deployer) : ConfigureSparkPAUFull.transferAdminRoles()
-        _assertRoleGrantedEvent(logs[4], DEFAULT_ADMIN_ROLE, admin, deployer);
+        // Grant admin DEFAULT_ADMIN_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[4],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : admin,
+            sender  : deployer
+        });
 
-        //[5] RoleRevoked(DEFAULT_ADMIN_ROLE, deployer, deployer) : ConfigureSparkPAUFull.transferAdminRoles()
-        _assertRoleRevokedEvent(logs[5], DEFAULT_ADMIN_ROLE, deployer, deployer);
+        // Revoke deployer DEFAULT_ADMIN_ROLE
+        _assertRoleRevokedEvent({
+            log     : logs[5],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : deployer,
+            sender  : deployer
+        });
     }
 
     function _assertALMProxyEvents() internal {
@@ -135,23 +165,53 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
 
         assertEq(logs.length, 6);
 
-        //[0] RoleGranted(DEFAULT_ADMIN_ROLE, assembler, pauFactory) : Assembler.deploy()
-        _assertRoleGrantedEvent(logs[0], DEFAULT_ADMIN_ROLE, address(assembler), address(pauFactory));
+        // Grant assembler DEFAULT_ADMIN_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[0],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : address(assembler),
+            sender  : address(pauFactory)
+        });
 
-        //[1] RoleGranted(DEFAULT_ADMIN_ROLE, deployer, assembler) : Assembler.deploy()
-        _assertRoleGrantedEvent(logs[1], DEFAULT_ADMIN_ROLE, deployer, address(assembler));
+        // Grant deployer DEFAULT_ADMIN_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[1],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : deployer,
+            sender  : address(assembler)
+        });
 
-        //[2] RoleGranted(CONTROLLER_ROLE, controller, assembler) : Assembler.deploy()
-        _assertRoleGrantedEvent(logs[2], CONTROLLER_ROLE, address(controller), address(assembler));
+        // Grant controller CONTROLLER_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[2],
+            role    : CONTROLLER_ROLE,
+            account : address(controller),
+            sender  : address(assembler)
+        });
 
-        //[3] RoleRevoked(DEFAULT_ADMIN_ROLE, assembler, assembler) : Assembler.deploy()
-        _assertRoleRevokedEvent(logs[3], DEFAULT_ADMIN_ROLE, address(assembler), address(assembler));
+        // Revoke assembler DEFAULT_ADMIN_ROLE
+        _assertRoleRevokedEvent({
+            log     : logs[3],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : address(assembler),
+            sender  : address(assembler)
+        });
 
-        //[4] RoleGranted(DEFAULT_ADMIN_ROLE, admin, deployer) : ConfigureSparkPAUFull.transferAdminRoles()
-        _assertRoleGrantedEvent(logs[4], DEFAULT_ADMIN_ROLE, admin, deployer);
+        // Grant admin DEFAULT_ADMIN_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[4],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : admin,
+            sender  : deployer
+        });
 
-        //[5] RoleRevoked(DEFAULT_ADMIN_ROLE, deployer, deployer) : ConfigureSparkPAUFull.transferAdminRoles()
-        _assertRoleRevokedEvent(logs[5], DEFAULT_ADMIN_ROLE, deployer, deployer);
+        // Revoke deployer DEFAULT_ADMIN_ROLE
+        _assertRoleRevokedEvent({
+            log     : logs[5],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : deployer,
+            sender  : deployer
+        });
     }
 
     function _assertAdministeredAgentEvents(address relayer, address freezer) internal {
@@ -159,26 +219,54 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
 
         assertEq(logs.length, 7);
 
-        //[0] AdminAdded(assembler, agentFactory) : Assembler.deploy()
-        _assertAdminAddedEvent(logs[0], address(assembler), address(agentFactory));
+        // Add assembler as admin
+        _assertAdminAddedEvent({
+            log     : logs[0],
+            account : address(assembler),
+            caller  : address(agentFactory)
+        });
 
-        //[1] AdminAdded(deployer, assembler) : Assembler.deploy()
-        _assertAdminAddedEvent(logs[1], deployer, address(assembler));
+        // Add deployer as admin
+        _assertAdminAddedEvent({
+            log     : logs[1],
+            account : deployer,
+            caller  : address(assembler)
+        });
 
-        //[2] ActorAdded(relayer, assembler) : Assembler.deploy()
-        _assertActorAddedEvent(logs[2], relayer, address(assembler));
+        // Add relayer as actor
+        _assertActorAddedEvent({
+            log     : logs[2],
+            account : relayer,
+            caller  : address(assembler)
+        });
 
-        //[3] RevokerAdded(freezer, assembler) : Assembler.deploy()
-        _assertRevokerAddedEvent(logs[3], freezer, address(assembler));
+        // Add freezer as revoker
+        _assertRevokerAddedEvent({
+            log     : logs[3],
+            account : freezer,
+            caller  : address(assembler)
+        });
 
-        //[4] AdminRemoved(assembler, assembler) : Assembler.deploy()
-        _assertAdminRemovedEvent(logs[4], address(assembler), address(assembler));
+        // Remove assembler as admin
+        _assertAdminRemovedEvent({
+            log     : logs[4],
+            account : address(assembler),
+            caller  : address(assembler)
+        });
 
-        //[5] AdminAdded(admin, deployer) : ConfigureSparkPAUFull.transferAdminRoles()
-        _assertAdminAddedEvent(logs[5], admin, deployer);
+        // Add admin as admin
+        _assertAdminAddedEvent({
+            log     : logs[5],
+            account : admin,
+            caller  : deployer
+        });
 
-        //[6] AdminRemoved(deployer, deployer) : ConfigureSparkPAUFull.transferAdminRoles()
-        _assertAdminRemovedEvent(logs[6], deployer, deployer);
+        // Remove deployer as admin
+        _assertAdminRemovedEvent({
+            log     : logs[6],
+            account : deployer,
+            caller  : deployer
+        });
     }
 
 }
@@ -335,71 +423,101 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
 
         assertEq(logs.length, 12); // 6 role grant/revoke events + 6 rate limit set events.
 
-        //[0] RoleGranted(DEFAULT_ADMIN_ROLE, assembler, pauFactory) : Assembler.deploy()
-        _assertRoleGrantedEvent(logs[0], DEFAULT_ADMIN_ROLE, address(assembler), address(pauFactory));
+        // Grant assembler DEFAULT_ADMIN_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[0],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : address(assembler),
+            sender  : address(pauFactory)
+        });
 
-        //[1] RoleGranted(DEFAULT_ADMIN_ROLE, deployer, assembler) : Assembler.deploy()
-        _assertRoleGrantedEvent(logs[1], DEFAULT_ADMIN_ROLE, deployer, address(assembler));
+        // Grant deployer DEFAULT_ADMIN_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[1],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : deployer,
+            sender  : address(assembler)
+        });
 
-        //[2] RoleGranted(CONTROLLER_ROLE, controller, assembler) : Assembler.deploy()
-        _assertRoleGrantedEvent(logs[2], CONTROLLER_ROLE, address(controller), address(assembler));
+        // Grant controller CONTROLLER_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[2],
+            role    : CONTROLLER_ROLE,
+            account : address(controller),
+            sender  : address(assembler)
+        });
 
-        //[3] RoleRevoked(DEFAULT_ADMIN_ROLE, assembler, assembler) : Assembler.deploy()
-        _assertRoleRevokedEvent(logs[3], DEFAULT_ADMIN_ROLE, address(assembler), address(assembler));
+        // Revoke assembler DEFAULT_ADMIN_ROLE
+        _assertRoleRevokedEvent({
+            log     : logs[3],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : address(assembler),
+            sender  : address(assembler)
+        });
 
-        //[4] RateLimitDataSet(cctp_toCCTPRateLimitKey, 10e6, 100e6 / 1 hours) : ConfigureSparkPAUFull.onboardCCTPFacet()
-        _assertRateLimitDataSetEvent(
-            logs[4],
-            controller.cctp_toCCTPRateLimitKey(),
-            CCTP_USDC_MAX_AMOUNT,
-            CCTP_USDC_SLOPE
-        );
+        // Assert cctp_toCCTPRateLimitKey rate limit
+        _assertRateLimitDataSetEvent({
+            log       : logs[4],
+            key       : controller.cctp_toCCTPRateLimitKey(),
+            maxAmount : CCTP_USDC_MAX_AMOUNT,
+            slope     : CCTP_USDC_SLOPE
+        });
 
-        //[5] RateLimitDataSet(cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN), 10e6, 100e6 / 1 hours) : ConfigureSparkPAUFull.onboardCCTPFacet()
-        _assertRateLimitDataSetEvent(
-            logs[5],
-            controller.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN),
-            CCTP_USDC_MAX_AMOUNT,
-            CCTP_USDC_SLOPE
-        );
+        // Assert cctp_getToDomainRateLimitKey rate limit
+        _assertRateLimitDataSetEvent({
+            log       : logs[5],
+            key       : controller.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN),
+            maxAmount : CCTP_USDC_MAX_AMOUNT,
+            slope     : CCTP_USDC_SLOPE
+        });
 
-        //[6] RateLimitDataSet(psm_usdcToUSDSSwapRateLimitKey, 10e6, 100e6 / 1 hours) : ConfigureSparkPAUFull.onboardPSMFacet()
-        _assertRateLimitDataSetEvent(
-            logs[6],
-            controller.psm_usdcToUSDSSwapRateLimitKey(),
-            PSM_USDC_MAX_AMOUNT,
-            PSM_USDC_SLOPE
-        );
+        // Assert psm_usdcToUSDSSwapRateLimitKey rate limit
+        _assertRateLimitDataSetEvent({
+            log       : logs[6],
+            key       : controller.psm_usdcToUSDSSwapRateLimitKey(),
+            maxAmount : PSM_USDC_MAX_AMOUNT,
+            slope     : PSM_USDC_SLOPE
+        });
 
-        //[7] RateLimitDataSet(psm_usdsToUSDCSwapRateLimitKey, 10e6, 100e6 / 1 hours) : ConfigureSparkPAUFull.onboardPSMFacet()
-        _assertRateLimitDataSetEvent(
-            logs[7],
-            controller.psm_usdsToUSDCSwapRateLimitKey(),
-            PSM_USDC_MAX_AMOUNT,
-            PSM_USDC_SLOPE
-        );
+        // Assert psm_usdsToUSDCSwapRateLimitKey rate limit
+        _assertRateLimitDataSetEvent({
+            log       : logs[7],
+            key       : controller.psm_usdsToUSDCSwapRateLimitKey(),
+            maxAmount : PSM_USDC_MAX_AMOUNT,
+            slope     : PSM_USDC_SLOPE
+        });
 
-        //[8] RateLimitDataSet(erc4626_getDepositRateLimitKey(SUSDC, USDC), 10e6, 100e6 / 1 hours) : ConfigureSparkPAUFull.onboardERC4626Facet()
-        _assertRateLimitDataSetEvent(
-            logs[8],
-            controller.erc4626_getDepositRateLimitKey(SUSDC, USDC),
-            ERC4626_USDC_MAX_AMOUNT,
-            ERC4626_USDC_SLOPE
-        );
+        // Assert erc4626_getDepositRateLimitKey(SUSDC, USDC) rate limit
+        _assertRateLimitDataSetEvent({
+            log       : logs[8],
+            key       : controller.erc4626_getDepositRateLimitKey(SUSDC, USDC),
+            maxAmount : ERC4626_USDC_MAX_AMOUNT,
+            slope     : ERC4626_USDC_SLOPE
+        });
 
-        //[9] RateLimitDataSet(erc4626_getWithdrawRateLimitKey(SUSDC), 10e6, 100e6 / 1 hours) : ConfigureSparkPAUFull.onboardERC4626Facet()
-        _assertRateLimitDataSetEvent(
-            logs[9],
-            controller.erc4626_getWithdrawRateLimitKey(SUSDC),
-            ERC4626_USDC_MAX_AMOUNT,
-            ERC4626_USDC_SLOPE
-        );
+        // Assert erc4626_getWithdrawRateLimitKey(SUSDC) rate limit
+        _assertRateLimitDataSetEvent({
+            log       : logs[9],
+            key       : controller.erc4626_getWithdrawRateLimitKey(SUSDC),
+            maxAmount : ERC4626_USDC_MAX_AMOUNT,
+            slope     : ERC4626_USDC_SLOPE
+        });
 
-        //[10] RoleGranted(DEFAULT_ADMIN_ROLE, admin, deployer) : ConfigureSparkPAUFull.transferAdminRoles()
-        _assertRoleGrantedEvent(logs[10], DEFAULT_ADMIN_ROLE, admin, deployer);
+        // Grant admin DEFAULT_ADMIN_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[10],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : admin,
+            sender  : deployer
+        });
 
-        //[11] RoleRevoked(DEFAULT_ADMIN_ROLE, deployer, deployer) : ConfigureSparkPAUFull.transferAdminRoles()
-        _assertRoleRevokedEvent(logs[11], DEFAULT_ADMIN_ROLE, deployer, deployer);
+        // Revoke deployer DEFAULT_ADMIN_ROLE
+        _assertRoleRevokedEvent({
+            log     : logs[11],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : deployer,
+            sender  : deployer
+        });
     }
 
     function test_controllerEvents() external {
@@ -407,34 +525,45 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
 
         assertEq(logs.length, 6);
 
-        //[0] Initialized(controller, assembler) : Assembler.deploy()
-        _assertInitializedEvent(logs[0]);
+        // Assert controller Initialized event
+        _assertInitializedEvent({
+            log: logs[0]
+        });
 
-        //[1] IntegrationSet(CCTP_FACET_ID) : ConfigureSparkPAUFull.onboardCCTPFacet()
-        _assertIntegrationSetEvent(logs[1], CCTP_FACET_ID);
+        // Assert CCTP_FACET_ID integration set event
+        _assertIntegrationSetEvent({
+            log           : logs[1],
+            integrationId : CCTP_FACET_ID
+        });
 
-        //[2] IntegrationSet(PSM_FACET_ID) : ConfigureSparkPAUFull.onboardPSMFacet()
-        _assertIntegrationSetEvent(logs[2], PSM_FACET_ID);
+        // Assert PSM_FACET_ID integration set event
+        _assertIntegrationSetEvent({
+            log           : logs[2],
+            integrationId : PSM_FACET_ID
+        });
 
-        //[3] IntegrationSet(ERC4626_FACET_ID) : ConfigureSparkPAUFull.onboardERC4626Facet()
-        _assertIntegrationSetEvent(logs[3], ERC4626_FACET_ID);
+        // Assert ERC4626_FACET_ID integration set event
+        _assertIntegrationSetEvent({
+            log           : logs[3],
+            integrationId : ERC4626_FACET_ID
+        });
 
-        //[4] CCTPDomainParametersSet : ConfigureSparkPAUFull.onboardCCTPFacet()
-        _assertCCTPDomainParametersSetEvent(
-            logs[4],
-            XLAYER_CCTP_DOMAIN,
-            XLAYER_CCTP_MINT_RECIPIENT,
-            CCTP_MIN_FEE_CAP_RATE,
-            CCTP_MAX_FEE_CAP_RATE
-        );
+        // Assert CCTPDomainParametersSet event
+        _assertCCTPDomainParametersSetEvent({
+            log               : logs[4],
+            destinationDomain : XLAYER_CCTP_DOMAIN,
+            mintRecipient     : XLAYER_CCTP_MINT_RECIPIENT,
+            minFeeCapRate     : CCTP_MIN_FEE_CAP_RATE,
+            maxFeeCapRate     : CCTP_MAX_FEE_CAP_RATE
+        });
 
-        //[5] ERC4626MaxExchangeRateSet : ConfigureSparkPAUFull.onboardERC4626Facet()
-        _assertERC4626MaxExchangeRateSetEvent(
-            logs[5],
-            SUSDC,
-            _expectedMaxExchangeRate(),
-            ERC4626_MAX_EXCHANGE_RATE_TOLERANCE
-        );
+        // Assert ERC4626MaxExchangeRateSet event
+        _assertERC4626MaxExchangeRateSetEvent({
+            log             : logs[5],
+            token           : SUSDC,
+            maxExchangeRate : _expectedMaxExchangeRate(),
+            maxPercentDelta : ERC4626_MAX_EXCHANGE_RATE_TOLERANCE
+        });
     }
 
     /**********************************************************************************************/
