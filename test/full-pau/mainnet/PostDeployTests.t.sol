@@ -3,6 +3,8 @@ pragma solidity ^0.8.34;
 
 import { VmSafe } from "../../../lib/forge-std/src/Vm.sol";
 
+import { IAccessControl } from "../../../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
+
 import { IEnumerableIntegrations as IEI } from "../../../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
 
 import { IAdministeredAgent } from "../../../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
@@ -30,6 +32,21 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
     /**********************************************************************************************/
     /*** State Assertions                                                                       ***/
     /**********************************************************************************************/
+
+    function _assertAdministeredAgentState(address relayer, address freezer) internal view {
+        assertEq(administeredAgent.adminCount(),   1);
+        assertEq(administeredAgent.actorCount(),   1);
+        assertEq(administeredAgent.grantorCount(), 0);
+        assertEq(administeredAgent.revokerCount(), 1);
+
+        assertEq(administeredAgent.getAdmin(0),   admin);
+        assertEq(administeredAgent.getActor(0),   relayer);
+        assertEq(administeredAgent.getRevoker(0), freezer);
+
+        assertEq(administeredAgent.getIsAdmin(deployer),              false);
+        assertEq(administeredAgent.getIsAdmin(address(assembler)),    false);
+        assertEq(administeredAgent.getIsAdmin(address(agentFactory)), false);
+    }
 
     function _assertAccessControlsState() internal view {
         assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, admin),     true);
@@ -85,23 +102,8 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
         assertEq(controller.rateLimits(),     address(rateLimits));
     }
 
-    function _assertAdministeredAgentState(address relayer, address freezer) internal view {
-        assertEq(administeredAgent.adminCount(),   1);
-        assertEq(administeredAgent.actorCount(),   1);
-        assertEq(administeredAgent.grantorCount(), 0);
-        assertEq(administeredAgent.revokerCount(), 1);
-
-        assertEq(administeredAgent.getAdmin(0),   admin);
-        assertEq(administeredAgent.getActor(0),   relayer);
-        assertEq(administeredAgent.getRevoker(0), freezer);
-
-        assertEq(administeredAgent.getIsAdmin(deployer),              false);
-        assertEq(administeredAgent.getIsAdmin(address(assembler)),    false);
-        assertEq(administeredAgent.getIsAdmin(address(agentFactory)), false);
-    }
-
     /**********************************************************************************************/
-    /*** Event tests                                                                            ***/
+    /*** Event assertions helpers                                                               ***/
     /**********************************************************************************************/
 
     function _assertAccessControlsEvents() internal {
@@ -194,13 +196,13 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
     address internal constant ACCESS_CONTROLS    = 0xF7C00D450494F5eb500A796A6685317618b6e6A0;
     address internal constant ADMINISTERED_AGENT = 0x8d165c44a8043C578fAA9fb35B99d324A7F83943;
     address internal constant ALM_PROXY          = 0xFB2252689E3a9c5d89cBBb65a174dba1163a8f19;
-    address internal constant CONTROLLER         = 0xD9874309494f3E6901999AF225cb8a70ff7aE1cE;
+    address internal constant CONTROLLER         = 0xB87A3680f5957AB3dC5F26d77b59326C267683a4;
     address internal constant RATE_LIMITS        = 0xD9874309494f3E6901999AF225cb8a70ff7aE1cE;
 
     // From deployments outside of this repo.
-    address internal constant AGENT_FACTORY = 0x8d165c44a8043C578fAA9fb35B99d324A7F83943;
+    address internal constant AGENT_FACTORY = 0x74C35B0990ea530926d2656003Cb3E3Bf286cA69;
     address internal constant BEACON        = 0x5Fd90192d68b102e1C46c59a42275bB7d0175375;
-    address internal constant PAU_FACTORY   = 0xB87A3680f5957AB3dC5F26d77b59326C267683a4;
+    address internal constant PAU_FACTORY   = 0x333EADAE67df9De9368422F415de5A5f1BcD3925;
 
     bytes32 internal constant CCTP_FACET_ID    = bytes32(abi.encodePacked("CCTP_FACET"));
     bytes32 internal constant PSM_FACET_ID     = bytes32(abi.encodePacked("PSM_FACET"));
@@ -223,9 +225,11 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
     address internal constant SUSDC = 0xBc65ad17c5C0a2A4D159fa5a503f4992c7B545FE;
     address internal constant USDC  = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-    uint256 internal constant ERC4626_USDC_MAX_AMOUNT     = 10e18;
-    uint256 internal constant ERC4626_USDC_SLOPE          = uint256(100e18) / 1 hours;
-    uint256 internal constant ERC4626_MAX_EXPECTED_ASSETS = 1.2e18;
+    uint256 internal constant ERC4626_USDC_MAX_AMOUNT = 10e6;
+    uint256 internal constant ERC4626_USDC_SLOPE      = uint256(100e6) / 1 hours;
+
+    uint256 internal constant ERC4626_MAX_EXPECTED_ASSETS         = 1.2e18;
+    uint256 internal constant ERC4626_MAX_EXCHANGE_RATE_TOLERANCE = 0.001e18;  // 0.1%
 
     function setUp() public override {
         super.setUp();
@@ -246,7 +250,12 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
     }
 
     function _getBlock() internal override pure returns (uint256) {
-        return 25925802;
+        return 25931121;
+    }
+
+    function test_administeredAgentState() external {
+        _assertAdministeredAgentState(RELAYER,  FREEZER);
+        _assertAdministeredAgentEvents(RELAYER, FREEZER);
     }
 
     function test_accessControlsStateAndEvents() external {
@@ -259,62 +268,16 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
         _assertALMProxyEvents();
     }
 
-    function test_rateLimitsStateAndEvents() external view {
+    function test_rateLimitsState() external view {
         _assertRateLimitsState();
     }
 
-    function test_controllerStateAndEvents() external view {
+    function test_controllerState() external view {
         _assertControllerState();
     }
 
-    function test_administeredAgentState() external {
-        _assertAdministeredAgentState(RELAYER,  FREEZER);
-        _assertAdministeredAgentEvents(RELAYER, FREEZER);
-    }
-
-    function test_rateLimitsStateWithOnboardings() external view {
-        // CCTP facet onboarding.
-
-        _assertRateLimitData(controller.cctp_toCCTPRateLimitKey(), CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
-
-        _assertRateLimitData(
-            controller.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN),
-            CCTP_USDC_MAX_AMOUNT,
-            CCTP_USDC_SLOPE
-        );
-
-        // PSM facet onboarding.
-
-        _assertRateLimitData(
-            controller.psm_usdcToUSDSSwapRateLimitKey(),
-            PSM_USDC_MAX_AMOUNT,
-            PSM_USDC_SLOPE
-        );
-
-        _assertRateLimitData(
-            controller.psm_usdsToUSDCSwapRateLimitKey(),
-            PSM_USDC_MAX_AMOUNT,
-            PSM_USDC_SLOPE
-        );
-
-        // ERC4626 facet onboarding.
-
-        _assertRateLimitData(
-            controller.erc4626_getDepositRateLimitKey(SUSDC, USDC),
-            ERC4626_USDC_MAX_AMOUNT,
-            ERC4626_USDC_SLOPE
-        );
-
-        _assertRateLimitData(
-            controller.erc4626_getWithdrawRateLimitKey(SUSDC),
-            ERC4626_USDC_MAX_AMOUNT,
-            ERC4626_USDC_SLOPE
-        );
-    }
-
-    function test_controllerStateWithOnboardings() external view {
-        // Controller integrations.
-
+    function test_rateLimitsAndControllerOnboardingState() external view {
+        // 0. Controller Integrations
         IEI.Integration[] memory integrations = controller.integrations();
 
         assertEq(integrations.length, 3);
@@ -327,8 +290,9 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
             _assertIntegration(integrations[i].id);
         }
 
-        // CCTP facet onboarding: domain parameters.
+        // 1. CCTP facet onboarding
 
+        // 1a. Controller state
         (
             bytes32 mintRecipient,
             uint32  minFeeCapRate,
@@ -339,24 +303,46 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
         assertEq(minFeeCapRate, CCTP_MIN_FEE_CAP_RATE);
         assertEq(maxFeeCapRate, CCTP_MAX_FEE_CAP_RATE);
 
-        // ERC4626 facet onboarding: max exchange rate.
+        // 1b. Rate limits state
 
-        assertEq(controller.erc4626_getMaxExchangeRate(SUSDC), _expectedMaxExchangeRate());
+        _assertRateLimitData(controller.cctp_toCCTPRateLimitKey(),                        CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
+        _assertRateLimitData(controller.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN), CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
+
+        // 2. PSM facet onboarding (No controller state changes to assert)
+
+        // 2b. Rate limits state
+
+        _assertRateLimitData(controller.psm_usdcToUSDSSwapRateLimitKey(), PSM_USDC_MAX_AMOUNT, PSM_USDC_SLOPE);
+        _assertRateLimitData(controller.psm_usdsToUSDCSwapRateLimitKey(), PSM_USDC_MAX_AMOUNT, PSM_USDC_SLOPE);
+
+        // 3. ERC4626 facet onboarding
+
+        // 3a. Controller state
+        assertApproxEqRel(
+            controller.erc4626_getMaxExchangeRate(SUSDC),
+            _expectedMaxExchangeRate(),
+            ERC4626_MAX_EXCHANGE_RATE_TOLERANCE
+        );
+
+        // 3b. Rate limits state
+
+        _assertRateLimitData(controller.erc4626_getDepositRateLimitKey(SUSDC, USDC), ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
+        _assertRateLimitData(controller.erc4626_getWithdrawRateLimitKey(SUSDC), ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
     }
 
     function test_rateLimitsEvents() external {
-        VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, RATE_LIMITS, "");
+        VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(rateLimits), "");
 
-        assertEq(logs.length, 12);
+        assertEq(logs.length, 12); // 6 role grant/revoke events + 6 rate limit set events.
 
         //[0] RoleGranted(DEFAULT_ADMIN_ROLE, assembler, pauFactory) : Assembler.deploy()
         _assertRoleGrantedEvent(logs[0], DEFAULT_ADMIN_ROLE, address(assembler), address(pauFactory));
 
         //[1] RoleGranted(DEFAULT_ADMIN_ROLE, deployer, assembler) : Assembler.deploy()
-        _assertRoleGrantedEvent(logs[1], DEFAULT_ADMIN_ROLE, DEPLOYER, address(assembler));
+        _assertRoleGrantedEvent(logs[1], DEFAULT_ADMIN_ROLE, deployer, address(assembler));
 
         //[2] RoleGranted(CONTROLLER_ROLE, controller, assembler) : Assembler.deploy()
-        _assertRoleGrantedEvent(logs[2], CONTROLLER_ROLE, CONTROLLER, address(assembler));
+        _assertRoleGrantedEvent(logs[2], CONTROLLER_ROLE, address(controller), address(assembler));
 
         //[3] RoleRevoked(DEFAULT_ADMIN_ROLE, assembler, assembler) : Assembler.deploy()
         _assertRoleRevokedEvent(logs[3], DEFAULT_ADMIN_ROLE, address(assembler), address(assembler));
@@ -377,7 +363,7 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
             CCTP_USDC_SLOPE
         );
 
-        // Configure: PSM facet onboarding.
+        //[6] RateLimitDataSet(psm_usdcToUSDSSwapRateLimitKey, 10e6, 100e6 / 1 hours) : ConfigureSparkPAUFull.onboardPSMFacet()
         _assertRateLimitDataSetEvent(
             logs[6],
             controller.psm_usdcToUSDSSwapRateLimitKey(),
@@ -385,6 +371,7 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
             PSM_USDC_SLOPE
         );
 
+        //[7] RateLimitDataSet(psm_usdsToUSDCSwapRateLimitKey, 10e6, 100e6 / 1 hours) : ConfigureSparkPAUFull.onboardPSMFacet()
         _assertRateLimitDataSetEvent(
             logs[7],
             controller.psm_usdsToUSDCSwapRateLimitKey(),
@@ -392,7 +379,7 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
             PSM_USDC_SLOPE
         );
 
-        // Configure: ERC4626 facet onboarding.
+        //[8] RateLimitDataSet(erc4626_getDepositRateLimitKey(SUSDC, USDC), 10e6, 100e6 / 1 hours) : ConfigureSparkPAUFull.onboardERC4626Facet()
         _assertRateLimitDataSetEvent(
             logs[8],
             controller.erc4626_getDepositRateLimitKey(SUSDC, USDC),
@@ -400,6 +387,7 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
             ERC4626_USDC_SLOPE
         );
 
+        //[9] RateLimitDataSet(erc4626_getWithdrawRateLimitKey(SUSDC), 10e6, 100e6 / 1 hours) : ConfigureSparkPAUFull.onboardERC4626Facet()
         _assertRateLimitDataSetEvent(
             logs[9],
             controller.erc4626_getWithdrawRateLimitKey(SUSDC),
@@ -407,9 +395,11 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
             ERC4626_USDC_SLOPE
         );
 
-        // Configure: DEFAULT_ADMIN_ROLE transfers from the deployer to the admin.
-        _assertRoleGrantedEvent(logs[10], DEFAULT_ADMIN_ROLE, ADMIN,    DEPLOYER);
-        _assertRoleRevokedEvent(logs[11], DEFAULT_ADMIN_ROLE, DEPLOYER, DEPLOYER);
+        //[10] RoleGranted(DEFAULT_ADMIN_ROLE, admin, deployer) : ConfigureSparkPAUFull.transferAdminRoles()
+        _assertRoleGrantedEvent(logs[10], DEFAULT_ADMIN_ROLE, admin, deployer);
+
+        //[11] RoleRevoked(DEFAULT_ADMIN_ROLE, deployer, deployer) : ConfigureSparkPAUFull.transferAdminRoles()
+        _assertRoleRevokedEvent(logs[11], DEFAULT_ADMIN_ROLE, deployer, deployer);
     }
 
     function test_controllerEvents() external {
@@ -417,14 +407,19 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
 
         assertEq(logs.length, 6);
 
-        // Deploy: controller initialization and integration wiring.
+        //[0] Initialized(controller, assembler) : Assembler.deploy()
         _assertInitializedEvent(logs[0]);
 
+        //[1] IntegrationSet(CCTP_FACET_ID) : ConfigureSparkPAUFull.onboardCCTPFacet()
         _assertIntegrationSetEvent(logs[1], CCTP_FACET_ID);
+
+        //[2] IntegrationSet(PSM_FACET_ID) : ConfigureSparkPAUFull.onboardPSMFacet()
         _assertIntegrationSetEvent(logs[2], PSM_FACET_ID);
+
+        //[3] IntegrationSet(ERC4626_FACET_ID) : ConfigureSparkPAUFull.onboardERC4626Facet()
         _assertIntegrationSetEvent(logs[3], ERC4626_FACET_ID);
 
-        // Configure: CCTP facet onboarding.
+        //[4] CCTPDomainParametersSet : ConfigureSparkPAUFull.onboardCCTPFacet()
         _assertCCTPDomainParametersSetEvent(
             logs[4],
             XLAYER_CCTP_DOMAIN,
@@ -433,16 +428,21 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
             CCTP_MAX_FEE_CAP_RATE
         );
 
-        // Configure: ERC4626 facet onboarding.
-        _assertERC4626MaxExchangeRateSetEvent(logs[5], SUSDC, _expectedMaxExchangeRate());
+        //[5] ERC4626MaxExchangeRateSet : ConfigureSparkPAUFull.onboardERC4626Facet()
+        _assertERC4626MaxExchangeRateSetEvent(
+            logs[5],
+            SUSDC,
+            _expectedMaxExchangeRate(),
+            ERC4626_MAX_EXCHANGE_RATE_TOLERANCE
+        );
     }
 
     /**********************************************************************************************/
     /*** Helper Functions                                                                       ***/
     /**********************************************************************************************/
 
-    /// Mirrors the configure script: the stored rate is the max expected assets scaled by the
-    /// vault shares captured when the script ran.
+    /// Mirrors the configure script: EXCHANGE_RATE_PRECISION * 1.2e18 / convertToShares(1e18).
+    /// Share price can drift after config, so callers compare with a relative tolerance.
     function _expectedMaxExchangeRate() internal view returns (uint256) {
         return controller.erc4626_EXCHANGE_RATE_PRECISION() * ERC4626_MAX_EXPECTED_ASSETS
             / IERC4626Like(SUSDC).convertToShares(1e18);

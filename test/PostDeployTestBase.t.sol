@@ -223,34 +223,6 @@ abstract contract PostDeployTestBase is Test {
     /*** Event test helpers                                                                     ***/
     /**********************************************************************************************/
 
-    function _assertCCTPDomainParametersSetEvent(
-        VmSafe.EthGetLogs memory log,
-        uint32                   destinationDomain,
-        address                  mintRecipient,
-        uint32                   minFeeCapRate,
-        uint32                   maxFeeCapRate
-    ) internal pure {
-        ( uint32 loggedMinFeeCapRate, uint32 loggedMaxFeeCapRate ) = abi.decode(log.data, (uint32, uint32));
-
-        assertEq(log.topics[0],          ICCTPFacet.CCTPDomainParametersSet.selector);
-        assertEq(uint256(log.topics[1]), uint256(destinationDomain));
-        assertEq(log.topics[2],          bytes32(uint256(uint160(mintRecipient))));
-
-        assertEq(loggedMinFeeCapRate, minFeeCapRate);
-        assertEq(loggedMaxFeeCapRate, maxFeeCapRate);
-    }
-
-    function _assertERC4626MaxExchangeRateSetEvent(
-        VmSafe.EthGetLogs memory log,
-        address                  token,
-        uint256                  maxExchangeRate
-    ) internal pure {
-        assertEq(log.topics[0],             IERC4626Facet.ERC4626MaxExchangeRateSet.selector);
-        assertEq(_toAddress(log.topics[1]), token);
-
-        assertEq(abi.decode(log.data, (uint256)), maxExchangeRate);
-    }
-
     function _assertInitializedEvent(VmSafe.EthGetLogs memory log) internal pure {
         assertEq(log.topics[0], Initializable.Initialized.selector);
         assertEq(log.data,      abi.encode(1));
@@ -394,6 +366,37 @@ abstract contract PostDeployTestBase is Test {
         assertEq(log.topics[0],             IAdministeredAgent.RevokerRemoved.selector);
         assertEq(_toAddress(log.topics[1]), account);
         assertEq(_toAddress(log.topics[2]), caller);
+    }
+
+    // Facet onboarding event helpers
+
+    function _assertCCTPDomainParametersSetEvent(
+        VmSafe.EthGetLogs memory log,
+        uint32                   destinationDomain,
+        address                  mintRecipient,
+        uint32                   minFeeCapRate,
+        uint32                   maxFeeCapRate
+    ) internal pure {
+        ( uint32 loggedMinFeeCapRate, uint32 loggedMaxFeeCapRate ) = abi.decode(log.data, (uint32, uint32));
+
+        assertEq(log.topics[0],          ICCTPFacet.CCTPDomainParametersSet.selector);
+        assertEq(uint256(log.topics[1]), uint256(destinationDomain));
+        assertEq(log.topics[2],          bytes32(uint256(uint160(mintRecipient))));
+
+        assertEq(loggedMinFeeCapRate, minFeeCapRate);
+        assertEq(loggedMaxFeeCapRate, maxFeeCapRate);
+    }
+
+    function _assertERC4626MaxExchangeRateSetEvent(
+        VmSafe.EthGetLogs memory log,
+        address                  token,
+        uint256                  maxExchangeRate,
+        uint256                  maxPercentDelta
+    ) internal pure {
+        assertEq(log.topics[0],             IERC4626Facet.ERC4626MaxExchangeRateSet.selector);
+        assertEq(_toAddress(log.topics[1]), token);
+
+        assertApproxEqRel(abi.decode(log.data, (uint256)), maxExchangeRate, maxPercentDelta);
     }
 
 }
