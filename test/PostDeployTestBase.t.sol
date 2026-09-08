@@ -89,7 +89,7 @@ abstract contract PostDeployTestBase is Test {
     function _setUpXLayerAndRobinhoodForks() internal {
         setChain("xlayer", ChainData({
             name    : "XLayer",
-            rpcUrl  : vm.envOr("XLAYER_RPC_URL", string("")),
+            rpcUrl  : vm.envOr("XLAYER_RPC_URL", string("https://rpc.xlayer.tech")),
             chainId : 196
         }));
 
