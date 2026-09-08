@@ -9,6 +9,8 @@ import { IEnumerableIntegrations as IEI } from "../../../lib/diamond-pau/src/int
 
 import { IAdministeredAgent } from "../../../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
 
+import { Ethereum } from "../../../lib/spark-address-registry/src/Ethereum.sol";
+
 import { PostDeployTestBase } from "../../PostDeployTestBase.t.sol";
 
 interface IERC4626Like {
@@ -18,6 +20,39 @@ interface IERC4626Like {
 }
 
 abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
+
+    bytes32 internal constant CCTP_FACET_ID    = "CCTP_FACET";
+    bytes32 internal constant PSM_FACET_ID     = "PSM_FACET";
+    bytes32 internal constant ERC4626_FACET_ID = "ERC4626_FACET";
+
+    uint32 internal constant XLAYER_CCTP_DOMAIN = 37;
+
+    address internal ADMIN;
+    address internal ASSEMBLER;
+    address internal DEPLOYER;
+    address internal FREEZER;
+    address internal RELAYER;
+    address internal ACCESS_CONTROLS;
+    address internal ADMINISTERED_AGENT;
+    address internal ALM_PROXY;
+    address internal CONTROLLER;
+    address internal RATE_LIMITS;
+    address internal AGENT_FACTORY;
+    address internal BEACON;
+    address internal PAU_FACTORY;
+    address internal XLAYER_CCTP_MINT_RECIPIENT;
+
+    uint32  internal CCTP_MIN_FEE_CAP_RATE;
+    uint32  internal CCTP_MAX_FEE_CAP_RATE;
+
+    uint256 internal CCTP_USDC_MAX_AMOUNT;
+    uint256 internal CCTP_USDC_SLOPE;
+    uint256 internal PSM_USDC_MAX_AMOUNT;
+    uint256 internal PSM_USDC_SLOPE;
+    uint256 internal ERC4626_USDC_MAX_AMOUNT;
+    uint256 internal ERC4626_USDC_SLOPE;
+    uint256 internal ERC4626_MAX_EXPECTED_ASSETS;
+    uint256 internal ERC4626_MAX_EXCHANGE_RATE_TOLERANCE;
 
     function setUp() public virtual override {
         super.setUp();
@@ -269,78 +304,6 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
         });
     }
 
-}
-
-contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
-
-    // script/input/1/deploy-pau-with-assembler-mainnet-staging.json
-    address internal constant ADMIN     = 0xb52991d5d29f371f493910c36f5A849b3748Cc28;
-    address internal constant ASSEMBLER = 0xA9637570C04ccE6ea30097F68EfCAEb1fbb917A2;
-    address internal constant DEPLOYER  = 0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f;
-    address internal constant FREEZER   = 0x611C7c37F296240c2fF5a92f0B4a398B01B237c4;
-    address internal constant RELAYER   = 0x611C7c37F296240c2fF5a92f0B4a398B01B237c4;
-
-    // script/output/1/deploy-pau-with-assembler-mainnet-staging-1788773303.json
-    address internal constant ACCESS_CONTROLS    = 0xF7C00D450494F5eb500A796A6685317618b6e6A0;
-    address internal constant ADMINISTERED_AGENT = 0x8d165c44a8043C578fAA9fb35B99d324A7F83943;
-    address internal constant ALM_PROXY          = 0xFB2252689E3a9c5d89cBBb65a174dba1163a8f19;
-    address internal constant CONTROLLER         = 0xB87A3680f5957AB3dC5F26d77b59326C267683a4;
-    address internal constant RATE_LIMITS        = 0xD9874309494f3E6901999AF225cb8a70ff7aE1cE;
-
-    // From deployments outside of this repo.
-    address internal constant AGENT_FACTORY = 0x74C35B0990ea530926d2656003Cb3E3Bf286cA69;
-    address internal constant BEACON        = 0x5Fd90192d68b102e1C46c59a42275bB7d0175375;
-    address internal constant PAU_FACTORY   = 0x333EADAE67df9De9368422F415de5A5f1BcD3925;
-
-    bytes32 internal constant CCTP_FACET_ID    = bytes32(abi.encodePacked("CCTP_FACET"));
-    bytes32 internal constant PSM_FACET_ID     = bytes32(abi.encodePacked("PSM_FACET"));
-    bytes32 internal constant ERC4626_FACET_ID = bytes32(abi.encodePacked("ERC4626_FACET"));
-
-    // CCTP facet onboarding.
-    uint32  internal constant XLAYER_CCTP_DOMAIN         = 37;
-    address internal constant XLAYER_CCTP_MINT_RECIPIENT = 0x4aeB3eA3cE2cF9ABaF8ED558C72A215743D7eb4F;
-
-    uint32  internal constant CCTP_MIN_FEE_CAP_RATE = 0;
-    uint32  internal constant CCTP_MAX_FEE_CAP_RATE = 100;
-    uint256 internal constant CCTP_USDC_MAX_AMOUNT  = 10e6;
-    uint256 internal constant CCTP_USDC_SLOPE       = uint256(100e6) / 1 hours;
-
-    // PSM facet onboarding.
-    uint256 internal constant PSM_USDC_MAX_AMOUNT  = 10e6;
-    uint256 internal constant PSM_USDC_SLOPE       = uint256(100e6) / 1 hours;
-
-    // ERC4626 facet onboarding.
-    address internal constant SUSDC = 0xBc65ad17c5C0a2A4D159fa5a503f4992c7B545FE;
-    address internal constant USDC  = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-
-    uint256 internal constant ERC4626_USDC_MAX_AMOUNT = 10e6;
-    uint256 internal constant ERC4626_USDC_SLOPE      = uint256(100e6) / 1 hours;
-
-    uint256 internal constant ERC4626_MAX_EXPECTED_ASSETS         = 1.2e18;
-    uint256 internal constant ERC4626_MAX_EXCHANGE_RATE_TOLERANCE = 0.001e18;  // 0.1%
-
-    function setUp() public override {
-        super.setUp();
-
-        _setUpAddresses(
-            AGENT_FACTORY,
-            ASSEMBLER,
-            BEACON,
-            PAU_FACTORY,
-            ACCESS_CONTROLS,
-            ADMINISTERED_AGENT,
-            ALM_PROXY,
-            CONTROLLER,
-            RATE_LIMITS,
-            ADMIN,
-            DEPLOYER
-        );
-    }
-
-    function _getBlock() internal override pure returns (uint256) {
-        return 25931121;
-    }
-
     function test_administeredAgentState() external {
         _assertAdministeredAgentState(RELAYER,  FREEZER);
         _assertAdministeredAgentEvents(RELAYER, FREEZER);
@@ -407,15 +370,15 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
 
         // 3a. Controller state
         assertApproxEqRel(
-            controller.erc4626_getMaxExchangeRate(SUSDC),
+            controller.erc4626_getMaxExchangeRate(Ethereum.SUSDC),
             _expectedMaxExchangeRate(),
             ERC4626_MAX_EXCHANGE_RATE_TOLERANCE
         );
 
         // 3b. Rate limits state
 
-        _assertRateLimitData(controller.erc4626_getDepositRateLimitKey(SUSDC, USDC), ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
-        _assertRateLimitData(controller.erc4626_getWithdrawRateLimitKey(SUSDC), ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
+        _assertRateLimitData(controller.erc4626_getDepositRateLimitKey(Ethereum.SUSDC, Ethereum.USDC), ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
+        _assertRateLimitData(controller.erc4626_getWithdrawRateLimitKey(Ethereum.SUSDC), ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
     }
 
     function test_rateLimitsEvents() external {
@@ -490,7 +453,7 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
         // Assert erc4626_getDepositRateLimitKey(SUSDC, USDC) rate limit
         _assertRateLimitDataSetEvent({
             log       : logs[8],
-            key       : controller.erc4626_getDepositRateLimitKey(SUSDC, USDC),
+            key       : controller.erc4626_getDepositRateLimitKey(Ethereum.SUSDC, Ethereum.USDC),
             maxAmount : ERC4626_USDC_MAX_AMOUNT,
             slope     : ERC4626_USDC_SLOPE
         });
@@ -498,7 +461,7 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
         // Assert erc4626_getWithdrawRateLimitKey(SUSDC) rate limit
         _assertRateLimitDataSetEvent({
             log       : logs[9],
-            key       : controller.erc4626_getWithdrawRateLimitKey(SUSDC),
+            key       : controller.erc4626_getWithdrawRateLimitKey(Ethereum.SUSDC),
             maxAmount : ERC4626_USDC_MAX_AMOUNT,
             slope     : ERC4626_USDC_SLOPE
         });
@@ -560,7 +523,7 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
         // Assert ERC4626MaxExchangeRateSet event
         _assertERC4626MaxExchangeRateSetEvent({
             log             : logs[5],
-            token           : SUSDC,
+            token           : Ethereum.SUSDC,
             maxExchangeRate : _expectedMaxExchangeRate(),
             maxPercentDelta : ERC4626_MAX_EXCHANGE_RATE_TOLERANCE
         });
@@ -574,7 +537,71 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
     /// Share price can drift after config, so callers compare with a relative tolerance.
     function _expectedMaxExchangeRate() internal view returns (uint256) {
         return controller.erc4626_EXCHANGE_RATE_PRECISION() * ERC4626_MAX_EXPECTED_ASSETS
-            / IERC4626Like(SUSDC).convertToShares(1e18);
+            / IERC4626Like(Ethereum.SUSDC).convertToShares(1e18);
+    }
+
+}
+
+contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
+
+    function setUp() public override {
+        super.setUp();
+
+        // script/input/1/deploy-pau-with-assembler-mainnet-staging.json
+        ADMIN     = 0xb52991d5d29f371f493910c36f5A849b3748Cc28;
+        ASSEMBLER = 0xA9637570C04ccE6ea30097F68EfCAEb1fbb917A2;
+        DEPLOYER  = 0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f;
+        FREEZER   = 0x611C7c37F296240c2fF5a92f0B4a398B01B237c4;
+        RELAYER   = 0x611C7c37F296240c2fF5a92f0B4a398B01B237c4;
+
+        // script/output/1/deploy-pau-with-assembler-mainnet-staging-1788773303.json
+        ACCESS_CONTROLS    = 0xF7C00D450494F5eb500A796A6685317618b6e6A0;
+        ADMINISTERED_AGENT = 0x8d165c44a8043C578fAA9fb35B99d324A7F83943;
+        ALM_PROXY          = 0xFB2252689E3a9c5d89cBBb65a174dba1163a8f19;
+        CONTROLLER         = 0xB87A3680f5957AB3dC5F26d77b59326C267683a4;
+        RATE_LIMITS        = 0xD9874309494f3E6901999AF225cb8a70ff7aE1cE;
+
+        // From deployments outside of this repo.
+        AGENT_FACTORY = 0x74C35B0990ea530926d2656003Cb3E3Bf286cA69;
+        BEACON        = 0x5Fd90192d68b102e1C46c59a42275bB7d0175375;
+        PAU_FACTORY   = 0x333EADAE67df9De9368422F415de5A5f1BcD3925;
+
+        // CCTP facet onboarding.
+        XLAYER_CCTP_MINT_RECIPIENT = 0x4aeB3eA3cE2cF9ABaF8ED558C72A215743D7eb4F;
+
+        CCTP_MIN_FEE_CAP_RATE = 0;
+        CCTP_MAX_FEE_CAP_RATE = 100;
+        CCTP_USDC_MAX_AMOUNT  = 10e6;
+        CCTP_USDC_SLOPE       = uint256(100e6) / 1 hours;
+
+        // PSM facet onboarding.
+        PSM_USDC_MAX_AMOUNT  = 10e6;
+        PSM_USDC_SLOPE       = uint256(100e6) / 1 hours;
+
+        // ERC4626 facet onboarding.
+        ERC4626_USDC_MAX_AMOUNT = 10e6;
+        ERC4626_USDC_SLOPE      = uint256(100e6) / 1 hours;
+
+        ERC4626_MAX_EXPECTED_ASSETS         = 1.2e18;
+        ERC4626_MAX_EXCHANGE_RATE_TOLERANCE = 0.001e18;  // 0.1%
+
+        _setUpAddresses(
+            AGENT_FACTORY,
+            ASSEMBLER,
+            BEACON,
+            PAU_FACTORY,
+            ACCESS_CONTROLS,
+            ADMINISTERED_AGENT,
+            ALM_PROXY,
+            CONTROLLER,
+            RATE_LIMITS,
+            ADMIN,
+            DEPLOYER
+        );
+    }
+
+    function _getBlock() internal override pure returns (uint256) {
+        return 25931121;
     }
 
 }
