@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.34;
 
+import { stdJson }  from "../../../lib/forge-std/src/StdJson.sol";
+
 import { VmSafe } from "../../../lib/forge-std/src/Vm.sol";
 
 import { IAccessControl } from "../../../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
@@ -27,19 +29,6 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
 
     uint32 internal constant XLAYER_CCTP_DOMAIN = 37;
 
-    address internal ADMIN;
-    address internal ASSEMBLER;
-    address internal DEPLOYER;
-    address internal FREEZER;
-    address internal RELAYER;
-    address internal ACCESS_CONTROLS;
-    address internal ADMINISTERED_AGENT;
-    address internal ALM_PROXY;
-    address internal CONTROLLER;
-    address internal RATE_LIMITS;
-    address internal AGENT_FACTORY;
-    address internal BEACON;
-    address internal PAU_FACTORY;
     address internal XLAYER_CCTP_MINT_RECIPIENT;
 
     uint32  internal CCTP_MIN_FEE_CAP_RATE;
@@ -62,79 +51,6 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
 
     function _getBlock() internal virtual pure returns (uint256) {
         return 0;
-    }
-
-    /**********************************************************************************************/
-    /*** State Assertions                                                                       ***/
-    /**********************************************************************************************/
-
-    function _assertAdministeredAgentState(address relayer, address freezer) internal view {
-        assertEq(administeredAgent.adminCount(),   1);
-        assertEq(administeredAgent.actorCount(),   1);
-        assertEq(administeredAgent.grantorCount(), 0);
-        assertEq(administeredAgent.revokerCount(), 1);
-
-        assertEq(administeredAgent.getAdmin(0),   admin);
-        assertEq(administeredAgent.getActor(0),   relayer);
-        assertEq(administeredAgent.getRevoker(0), freezer);
-
-        assertEq(administeredAgent.getIsAdmin(deployer),              false);
-        assertEq(administeredAgent.getIsAdmin(address(assembler)),    false);
-        assertEq(administeredAgent.getIsAdmin(address(agentFactory)), false);
-    }
-
-    function _assertAccessControlsState() internal view {
-        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, admin),     true);
-        assertEq(accessControls.getRoleMemberCount(DEFAULT_ADMIN_ROLE), 1);
-
-        assertEq(accessControls.hasRole(ALLOCATOR_ROLE, address(administeredAgent)), true);
-        assertEq(accessControls.getRoleMemberCount(ALLOCATOR_ROLE),                  1);
-
-        // Neither the deployer nor the deploy infrastructure retains any role.
-
-        assertEq(accessControls.hasRole(ALLOCATOR_ROLE,     deployer), false);
-        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, deployer), false);
-
-        assertEq(accessControls.hasRole(ALLOCATOR_ROLE,     address(assembler)), false);
-        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, address(assembler)), false);
-
-        assertEq(accessControls.hasRole(ALLOCATOR_ROLE,     address(pauFactory)), false);
-        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, address(pauFactory)), false);
-    }
-
-    function _assertALMProxyState() internal view {
-        assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, admin),               true);
-        assertEq(almProxy.hasRole(CONTROLLER_ROLE,    address(controller)), true);
-
-        assertEq(almProxy.hasRole(CONTROLLER_ROLE,    deployer), false);
-        assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, deployer), false);
-
-        assertEq(almProxy.hasRole(CONTROLLER_ROLE,    address(assembler)), false);
-        assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, address(assembler)), false);
-
-        assertEq(almProxy.hasRole(CONTROLLER_ROLE,    address(pauFactory)), false);
-        assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, address(pauFactory)), false);
-    }
-
-    function _assertRateLimitsState() internal view {
-        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, admin),               true);
-        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    address(controller)), true);
-
-        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    deployer), false);
-        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, deployer), false);
-
-        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    address(assembler)), false);
-        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, address(assembler)), false);
-
-        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    address(pauFactory)), false);
-        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, address(pauFactory)), false);
-    }
-
-    function _assertControllerState() internal view {
-        assertEq(controller.accessControls(), address(accessControls));
-        assertEq(controller.beacon(),         address(beacon));
-        assertEq(controller.proxy(),          address(almProxy));
-        assertEq(controller.rateLimits(),     address(rateLimits));
     }
 
     /**********************************************************************************************/
@@ -305,8 +221,8 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
     }
 
     function test_administeredAgentState() external {
-        _assertAdministeredAgentState(RELAYER,  FREEZER);
-        _assertAdministeredAgentEvents(RELAYER, FREEZER);
+        _assertAdministeredAgentState(relayer,  freezer);
+        _assertAdministeredAgentEvents(relayer, freezer);
     }
 
     function test_accessControlsStateAndEvents() external {
@@ -484,7 +400,7 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
     }
 
     function test_controllerEvents() external {
-        VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, CONTROLLER, "");
+        VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(controller), "");
 
         assertEq(logs.length, 6);
 
@@ -544,27 +460,10 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
 
 contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
 
+    using stdJson for string;
+
     function setUp() public override {
         super.setUp();
-
-        // script/input/1/deploy-pau-with-assembler-mainnet-staging.json
-        ADMIN     = 0xb52991d5d29f371f493910c36f5A849b3748Cc28;
-        ASSEMBLER = 0xA9637570C04ccE6ea30097F68EfCAEb1fbb917A2;
-        DEPLOYER  = 0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f;
-        FREEZER   = 0x611C7c37F296240c2fF5a92f0B4a398B01B237c4;
-        RELAYER   = 0x611C7c37F296240c2fF5a92f0B4a398B01B237c4;
-
-        // script/output/1/deploy-pau-with-assembler-mainnet-staging-1788773303.json
-        ACCESS_CONTROLS    = 0xF7C00D450494F5eb500A796A6685317618b6e6A0;
-        ADMINISTERED_AGENT = 0x8d165c44a8043C578fAA9fb35B99d324A7F83943;
-        ALM_PROXY          = 0xFB2252689E3a9c5d89cBBb65a174dba1163a8f19;
-        CONTROLLER         = 0xB87A3680f5957AB3dC5F26d77b59326C267683a4;
-        RATE_LIMITS        = 0xD9874309494f3E6901999AF225cb8a70ff7aE1cE;
-
-        // From deployments outside of this repo.
-        AGENT_FACTORY = 0x74C35B0990ea530926d2656003Cb3E3Bf286cA69;
-        BEACON        = 0x5Fd90192d68b102e1C46c59a42275bB7d0175375;
-        PAU_FACTORY   = 0x333EADAE67df9De9368422F415de5A5f1BcD3925;
 
         // CCTP facet onboarding.
         XLAYER_CCTP_MINT_RECIPIENT = 0x4aeB3eA3cE2cF9ABaF8ED558C72A215743D7eb4F;
@@ -585,19 +484,23 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
         ERC4626_MAX_EXPECTED_ASSETS         = 1.2e18;
         ERC4626_MAX_EXCHANGE_RATE_TOLERANCE = 0.001e18;  // 0.1%
 
-        _setUpAddresses(
-            AGENT_FACTORY,
-            ASSEMBLER,
-            BEACON,
-            PAU_FACTORY,
-            ACCESS_CONTROLS,
-            ADMINISTERED_AGENT,
-            ALM_PROXY,
-            CONTROLLER,
-            RATE_LIMITS,
-            ADMIN,
-            DEPLOYER
-        );
+        string memory json = vm.readFile("deployments/mainnet-staging.json");
+
+        _setUpAddresses({
+            _agentFactory      : json.readAddress(".agentFactory"),
+            _assembler         : json.readAddress(".defaultPAUAssembler"),
+            _beacon            : json.readAddress(".beacon"),
+            _pauFactory        : json.readAddress(".pauFactory"),
+            _accessControls    : json.readAddress(".accessControls"),
+            _administeredAgent : json.readAddress(".administeredAgent"),
+            _almProxy          : json.readAddress(".proxy"),
+            _controller        : json.readAddress(".controller"),
+            _rateLimits        : json.readAddress(".rateLimits"),
+            _admin             : json.readAddress(".admin"),
+            _deployer          : json.readAddress(".deployer"),
+            _relayer           : json.readAddress(".relayer"),
+            _freezer           : json.readAddress(".freezer")
+        });
     }
 
     function _getBlock() internal override pure returns (uint256) {

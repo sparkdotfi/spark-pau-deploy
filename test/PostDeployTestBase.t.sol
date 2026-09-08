@@ -47,6 +47,8 @@ abstract contract PostDeployTestBase is Test {
 
     address internal admin;
     address internal deployer;
+    address internal relayer;
+    address internal freezer;
 
     function setUp() public virtual {
         _setUpXLayerAndRobinhoodForks();
@@ -63,7 +65,9 @@ abstract contract PostDeployTestBase is Test {
         address _controller,
         address _rateLimits,
         address _admin,
-        address _deployer
+        address _deployer,
+        address _relayer,
+        address _freezer
     ) internal {
         agentFactory = IAdministeredAgentFactory(_agentFactory);
         assembler    = IDefaultPAUAssemblerLike(_assembler);
@@ -78,6 +82,8 @@ abstract contract PostDeployTestBase is Test {
 
         admin    = _admin;
         deployer = _deployer;
+        relayer  = _relayer;
+        freezer  = _freezer;
     }
 
     function _setUpXLayerAndRobinhoodForks() internal {
@@ -92,6 +98,79 @@ abstract contract PostDeployTestBase is Test {
             rpcUrl  : vm.envOr("RH_RPC_URL", string("")),
             chainId : 4663
         }));
+    }
+
+    /**********************************************************************************************/
+    /*** State Assertions                                                                       ***/
+    /**********************************************************************************************/
+
+    function _assertAdministeredAgentState(address relayer, address freezer) internal view {
+        assertEq(administeredAgent.adminCount(),   1);
+        assertEq(administeredAgent.actorCount(),   1);
+        assertEq(administeredAgent.grantorCount(), 0);
+        assertEq(administeredAgent.revokerCount(), 1);
+
+        assertEq(administeredAgent.getAdmin(0),   admin);
+        assertEq(administeredAgent.getActor(0),   relayer);
+        assertEq(administeredAgent.getRevoker(0), freezer);
+
+        assertEq(administeredAgent.getIsAdmin(deployer),              false);
+        assertEq(administeredAgent.getIsAdmin(address(assembler)),    false);
+        assertEq(administeredAgent.getIsAdmin(address(agentFactory)), false);
+    }
+
+    function _assertAccessControlsState() internal view {
+        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, admin),     true);
+        assertEq(accessControls.getRoleMemberCount(DEFAULT_ADMIN_ROLE), 1);
+
+        assertEq(accessControls.hasRole(ALLOCATOR_ROLE, address(administeredAgent)), true);
+        assertEq(accessControls.getRoleMemberCount(ALLOCATOR_ROLE),                  1);
+
+        // Neither the deployer nor the deploy infrastructure retains any role.
+
+        assertEq(accessControls.hasRole(ALLOCATOR_ROLE,     deployer), false);
+        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, deployer), false);
+
+        assertEq(accessControls.hasRole(ALLOCATOR_ROLE,     address(assembler)), false);
+        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, address(assembler)), false);
+
+        assertEq(accessControls.hasRole(ALLOCATOR_ROLE,     address(pauFactory)), false);
+        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, address(pauFactory)), false);
+    }
+
+    function _assertALMProxyState() internal view {
+        assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, admin),               true);
+        assertEq(almProxy.hasRole(CONTROLLER_ROLE,    address(controller)), true);
+
+        assertEq(almProxy.hasRole(CONTROLLER_ROLE,    deployer), false);
+        assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, deployer), false);
+
+        assertEq(almProxy.hasRole(CONTROLLER_ROLE,    address(assembler)), false);
+        assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, address(assembler)), false);
+
+        assertEq(almProxy.hasRole(CONTROLLER_ROLE,    address(pauFactory)), false);
+        assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, address(pauFactory)), false);
+    }
+
+    function _assertRateLimitsState() internal view {
+        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, admin),               true);
+        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    address(controller)), true);
+
+        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    deployer), false);
+        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, deployer), false);
+
+        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    address(assembler)), false);
+        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, address(assembler)), false);
+
+        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    address(pauFactory)), false);
+        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, address(pauFactory)), false);
+    }
+
+    function _assertControllerState() internal view {
+        assertEq(controller.accessControls(), address(accessControls));
+        assertEq(controller.beacon(),         address(beacon));
+        assertEq(controller.proxy(),          address(almProxy));
+        assertEq(controller.rateLimits(),     address(rateLimits));
     }
 
     /**********************************************************************************************/

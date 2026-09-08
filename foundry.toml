@@ -10,7 +10,8 @@ evm_version = 'cancun'
 ffi = true
 fs_permissions =[
     { access = "read", path = "./script/input/" },
-    { access = "read-write", path = "./script/output/" }
+    { access = "read-write", path = "./script/output/" },
+    { access = "read", path = "./deployments/" }
 ]
 
 [fuzz]
