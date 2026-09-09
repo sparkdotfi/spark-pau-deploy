@@ -9,6 +9,7 @@ import { IERC20 }   from "../../lib/forge-std/src/interfaces/IERC20.sol";
 import { IERC4626 } from "../../lib/forge-std/src/interfaces/IERC4626.sol";
 
 import { Ethereum } from "../../lib/spark-address-registry/src/Ethereum.sol";
+import { XLayer }   from "../../lib/spark-address-registry/src/XLayer.sol";
 
 import { Bridge, BridgeType }    from "../../lib/diamond-pau/lib/grove-xchain-helpers/src/testing/Bridge.sol";
 import { CCTPv2BridgeTesting }   from "../../lib/diamond-pau/lib/grove-xchain-helpers/src/testing/bridges/CCTPv2BridgeTesting.sol";
@@ -40,7 +41,12 @@ abstract contract CrossChainE2ETestBase is Test {
     using CCTPv2BridgeTesting for Bridge;
 
     uint256 internal DEPOSIT_AMOUNT;
-    uint256 internal RATE_LIMIT_MAX_AMOUNT;
+    uint256 internal TAKE_RATE_LIMIT_MAX_AMOUNT;
+    uint256 internal CCTP_RATE_LIMIT_MAX_AMOUNT;
+    uint256 internal CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT;
+    uint256 internal TRANSFER_RATE_LIMIT_MAX_AMOUNT;
+    uint256 internal DEPOSIT_RATE_LIMIT_MAX_AMOUNT;
+    uint256 internal WITHDRAW_RATE_LIMIT_MAX_AMOUNT;
 
     uint32 internal ETHEREUM_CCTP_DOMAIN;
     uint32 internal XLAYER_CCTP_DOMAIN;
@@ -106,14 +112,14 @@ abstract contract CrossChainE2ETestBase is Test {
 
         bytes32 takeKey = xlayerController.sparkVault_getTakeRateLimitKey(address(spusdc));
 
-        assertEq(xlayerRateLimits.getCurrentRateLimit(takeKey), RATE_LIMIT_MAX_AMOUNT);
+        assertEq(xlayerRateLimits.getCurrentRateLimit(takeKey), TAKE_RATE_LIMIT_MAX_AMOUNT);
 
         assertEq(xlayerUsdc.balanceOf(XLAYER_ALM_PROXY), 0);
 
         vm.prank(XLAYER_RELAYER);
         xlayerAgent.call(address(xlayerController), abi.encodeCall(xlayerController.sparkVault_take, (address(spusdc), DEPOSIT_AMOUNT)));
 
-        assertEq(xlayerRateLimits.getCurrentRateLimit(takeKey), RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
+        assertEq(xlayerRateLimits.getCurrentRateLimit(takeKey), TAKE_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
 
         assertEq(xlayerUsdc.balanceOf(address(spusdc)),  0);
         assertEq(xlayerUsdc.balanceOf(XLAYER_ALM_PROXY), DEPOSIT_AMOUNT);
@@ -123,16 +129,16 @@ abstract contract CrossChainE2ETestBase is Test {
         bytes32 xlayerCctpKey       = xlayerController.cctp_toCCTPRateLimitKey();
         bytes32 xlayerCctpDomainKey = xlayerController.cctp_getToDomainRateLimitKey(ETHEREUM_CCTP_DOMAIN);
 
-        assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpKey),       RATE_LIMIT_MAX_AMOUNT);
-        assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpDomainKey), RATE_LIMIT_MAX_AMOUNT);
+        assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpKey),       CCTP_RATE_LIMIT_MAX_AMOUNT);
+        assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT);
 
         uint256 xlayerUsdcSupply = xlayerUsdc.totalSupply();
 
         vm.prank(XLAYER_RELAYER);
         xlayerAgent.call(address(xlayerController), abi.encodeCall(xlayerController.cctp_transfer, (DEPOSIT_AMOUNT, ETHEREUM_CCTP_DOMAIN, 0)));
 
-        assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpKey),       RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
-        assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpDomainKey), RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
+        assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpKey),       CCTP_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
+        assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
 
         assertEq(xlayerUsdc.balanceOf(XLAYER_ALM_PROXY), 0);
         assertEq(xlayerUsdc.totalSupply(),               xlayerUsdcSupply - DEPOSIT_AMOUNT);
@@ -155,8 +161,8 @@ abstract contract CrossChainE2ETestBase is Test {
         bytes32 depositKey  = mainnetController.erc4626_getDepositRateLimitKey(Ethereum.SUSDC, Ethereum.USDC);
         bytes32 withdrawKey = mainnetController.erc4626_getWithdrawRateLimitKey(Ethereum.SUSDC);
 
-        assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey),  RATE_LIMIT_MAX_AMOUNT);
-        assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), RATE_LIMIT_MAX_AMOUNT);
+        assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey),  DEPOSIT_RATE_LIMIT_MAX_AMOUNT);
+        assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), WITHDRAW_RATE_LIMIT_MAX_AMOUNT);
 
         uint256 expectedShares = susdc.convertToShares(DEPOSIT_AMOUNT);
 
@@ -165,8 +171,8 @@ abstract contract CrossChainE2ETestBase is Test {
         vm.prank(MAINNET_RELAYER);
         mainnetAgent.call(address(mainnetController), abi.encodeCall(mainnetController.erc4626_deposit, (Ethereum.SUSDC, DEPOSIT_AMOUNT, expectedShares)));
 
-        assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey),  RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
-        assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), RATE_LIMIT_MAX_AMOUNT);
+        assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey),  DEPOSIT_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
+        assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), WITHDRAW_RATE_LIMIT_MAX_AMOUNT);
 
         assertEq(usdc.balanceOf(MAINNET_ALM_PROXY),  0);
         assertEq(susdc.balanceOf(MAINNET_ALM_PROXY), expectedShares);
@@ -180,15 +186,15 @@ abstract contract CrossChainE2ETestBase is Test {
         uint256 usdcWithYield = susdc.convertToAssets(expectedShares);
 
         assertGt(usdcWithYield, DEPOSIT_AMOUNT);
-        assertLt(usdcWithYield, RATE_LIMIT_MAX_AMOUNT);
+        assertLt(usdcWithYield, DEPOSIT_RATE_LIMIT_MAX_AMOUNT);
 
         // Step 7: Relayer withdraws from sUSDC by redeeming every share.
 
         vm.prank(MAINNET_RELAYER);
         mainnetAgent.call(address(mainnetController), abi.encodeCall(mainnetController.erc4626_redeem, (Ethereum.SUSDC, expectedShares, usdcWithYield)));
 
-        assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey),  RATE_LIMIT_MAX_AMOUNT);
-        assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
+        assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey),  DEPOSIT_RATE_LIMIT_MAX_AMOUNT);
+        assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), WITHDRAW_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
 
         assertEq(susdc.balanceOf(MAINNET_ALM_PROXY), 0);
         assertEq(usdc.balanceOf(MAINNET_ALM_PROXY),  usdcWithYield);
@@ -198,14 +204,14 @@ abstract contract CrossChainE2ETestBase is Test {
         bytes32 mainnetCctpKey       = mainnetController.cctp_toCCTPRateLimitKey();
         bytes32 mainnetCctpDomainKey = mainnetController.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN);
 
-        assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey),       RATE_LIMIT_MAX_AMOUNT);
-        assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpDomainKey), RATE_LIMIT_MAX_AMOUNT);
+        assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey),       CCTP_RATE_LIMIT_MAX_AMOUNT);
+        assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT);
 
         vm.prank(MAINNET_RELAYER);
         mainnetAgent.call(address(mainnetController), abi.encodeCall(mainnetController.cctp_transfer, (usdcWithYield, XLAYER_CCTP_DOMAIN, 0)));
 
-        assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey),       RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
-        assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpDomainKey), RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
+        assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey),       CCTP_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
+        assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
 
         assertEq(usdc.balanceOf(MAINNET_ALM_PROXY), 0);
         assertEq(usdc.totalSupply(),                mainnetUsdcSupply + DEPOSIT_AMOUNT - usdcWithYield);
@@ -225,12 +231,12 @@ abstract contract CrossChainE2ETestBase is Test {
 
         bytes32 transferKey = xlayerController.transferAsset_getTransferRateLimitKey(address(xlayerUsdc), address(spusdc));
 
-        assertEq(xlayerRateLimits.getCurrentRateLimit(transferKey), RATE_LIMIT_MAX_AMOUNT);
+        assertEq(xlayerRateLimits.getCurrentRateLimit(transferKey), TRANSFER_RATE_LIMIT_MAX_AMOUNT);
 
         vm.prank(XLAYER_RELAYER);
         xlayerAgent.call(address(xlayerController), abi.encodeCall(xlayerController.transferAsset_transfer, (address(xlayerUsdc), address(spusdc), usdcWithYield)));
 
-        assertEq(xlayerRateLimits.getCurrentRateLimit(transferKey), RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
+        assertEq(xlayerRateLimits.getCurrentRateLimit(transferKey), TRANSFER_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
 
         assertEq(xlayerUsdc.balanceOf(XLAYER_ALM_PROXY), 0);
         assertEq(xlayerUsdc.balanceOf(address(spusdc)),  usdcWithYield);
@@ -267,8 +273,13 @@ contract CrossChainE2ETestStaging is CrossChainE2ETestBase {
         string memory mainnetJson = vm.readFile("deployments/mainnet-staging.json");
         string memory xlayerJson  = vm.readFile("deployments/xlayer-staging.json");
 
-        DEPOSIT_AMOUNT        = 5e6;
-        RATE_LIMIT_MAX_AMOUNT = 10e6;
+        DEPOSIT_AMOUNT                    = 5e6;
+        TAKE_RATE_LIMIT_MAX_AMOUNT        = 10e6;
+        CCTP_RATE_LIMIT_MAX_AMOUNT        = 10e6;
+        CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT = 10e6;
+        TRANSFER_RATE_LIMIT_MAX_AMOUNT    = 10e6;
+        DEPOSIT_RATE_LIMIT_MAX_AMOUNT     = 10e6;
+        WITHDRAW_RATE_LIMIT_MAX_AMOUNT    = 10e6;
 
         ADMIN                    = mainnetJson.readAddress(".admin");
         CCTP_MESSAGE_TRANSMITTER = CCTPv2Forwarder.MESSAGE_TRANSMITTER_CIRCLE_ETHEREUM;
@@ -286,7 +297,7 @@ contract CrossChainE2ETestStaging is CrossChainE2ETestBase {
         xlayerController = IForeignControllerFull(xlayerJson.readAddress(".controller"));
         xlayerRateLimits = IRateLimits(xlayerJson.readAddress(".rateLimits"));
         spusdc           = ISparkVaultLike(xlayerJson.readAddress(".spUSDC"));
-        xlayerUsdc       = IERC20(0xB6CEceAB302E2E4948951eE7843FC24E92933061);
+        xlayerUsdc       = IERC20(XLayer.USDC);
 
         mainnetAgent      = IAdministeredAgent(mainnetJson.readAddress(".administeredAgent"));
         mainnetController = IMainnetControllerFull(mainnetJson.readAddress(".controller"));
