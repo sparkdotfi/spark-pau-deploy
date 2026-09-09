@@ -63,6 +63,8 @@ interface ISparkVaultLike {
 
     function revokeRole(bytes32 role, address account) external;
 
+    function setDepositCap(uint256 cap) external;
+
     function convertToShares(uint256 assets) external view returns (uint256 shares);
 
 }
@@ -291,6 +293,8 @@ contract ConfigureSparkPAUFullXLayer is ConfigureSparkPAUFullBase {
     }
 
     function _onboardSparkVaultFacet() internal {
+        ISparkVaultLike(spusdc).setDepositCap(1_000_000e6);
+
         ISparkVaultLike(spusdc).grantRole(ISparkVaultLike(spusdc).TAKER_ROLE(), address(almProxy));
 
         rateLimits.setRateLimitData(
