@@ -165,7 +165,7 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
         });
     }
 
-    function _assertAdministeredAgentEvents(address relayer, address freezer) internal {
+    function _assertAdministeredAgentEvents() internal {
         VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(administeredAgent), "");
 
         assertEq(logs.length, 7);
@@ -221,8 +221,8 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
     }
 
     function test_administeredAgentState() external {
-        _assertAdministeredAgentState(relayer,  freezer);
-        _assertAdministeredAgentEvents(relayer, freezer);
+        _assertAdministeredAgentState();
+        _assertAdministeredAgentEvents();
     }
 
     function test_accessControlsStateAndEvents() external {

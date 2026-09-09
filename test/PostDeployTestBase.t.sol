@@ -104,7 +104,7 @@ abstract contract PostDeployTestBase is Test {
     /*** State Assertions                                                                       ***/
     /**********************************************************************************************/
 
-    function _assertAdministeredAgentState(address relayer, address freezer) internal view {
+    function _assertAdministeredAgentState() internal view {
         assertEq(administeredAgent.adminCount(),   1);
         assertEq(administeredAgent.actorCount(),   1);
         assertEq(administeredAgent.grantorCount(), 0);

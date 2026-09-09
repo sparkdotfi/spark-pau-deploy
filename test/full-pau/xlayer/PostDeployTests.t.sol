@@ -51,7 +51,7 @@ abstract contract XLayerPostDeployTestsBase is PostDeployTestBase {
     }
 
     function test_administeredAgentState() external view {
-        _assertAdministeredAgentState(relayer, freezer);
+        _assertAdministeredAgentState();
     }
 
     function test_accessControlsState() external view {
