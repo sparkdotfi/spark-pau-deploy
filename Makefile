@@ -45,6 +45,31 @@ clean:
 	forge clean
 
 # --------------------------------------------------------------------------------------------------
+# Fork deploy tests                                                                                #
+# --------------------------------------------------------------------------------------------------
+# Run the real deploy and configure scripts on a fork of the target chain, pinned at the same block
+# as the post-deploy tests, then assert the result with the post-deploy assertions. The addresses
+# come from the deploy script's return value and the events from the recorded logs, so nothing is
+# read from Etherscan and nothing is written to script/output/. Run BEFORE broadcasting: a config
+# mistake fails here instead of after the deployment is spent.
+#
+# Both chains assert state and events.
+
+test-forkdeploy: test-forkdeploy-mainnet-full test-forkdeploy-xlayer-full
+
+test-forkdeploy-mainnet-full:
+	forge test --match-path "test/full-pau/mainnet/ForkDeployTests.t.sol" -vvv
+
+test-forkdeploy-mainnet-full-staging:
+	forge test --match-contract "MainnetForkDeployTests" -vvv
+
+test-forkdeploy-xlayer-full:
+	forge test --match-path "test/full-pau/xlayer/ForkDeployTests.t.sol" -vvv
+
+test-forkdeploy-xlayer-full-staging:
+	forge test --match-contract "XLayerForkDeployTests" -vvv
+
+# --------------------------------------------------------------------------------------------------
 # Post deploy tests                                                                                #
 # --------------------------------------------------------------------------------------------------
 # Assert the end state of a deployment that has already been deployed AND configured. There is one
@@ -52,7 +77,7 @@ clean:
 # adding a contract or a file, never a new assertion.
 #
 # Mainnet asserts state and events. X Layer asserts state only, the Etherscan v2 log endpoint does
-# not cover chain 196.
+# not cover chain 196 (its events are asserted by the fork deploy tests instead).
 
 test-postdeploy: test-postdeploy-mainnet-full test-postdeploy-xlayer-full
 
@@ -116,6 +141,8 @@ configure-xlayer-full-staging:
 		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(XLAYER_RPC_URL)
 
 .PHONY: build test clean \
+	test-forkdeploy test-forkdeploy-mainnet-full test-forkdeploy-mainnet-full-staging \
+	test-forkdeploy-xlayer-full test-forkdeploy-xlayer-full-staging \
 	test-postdeploy test-postdeploy-mainnet-full test-postdeploy-mainnet-full-staging \
 	test-postdeploy-xlayer-full test-postdeploy-xlayer-full-staging \
 	deploy-mainnet-full-staging deploy-mainnet-full-production \
