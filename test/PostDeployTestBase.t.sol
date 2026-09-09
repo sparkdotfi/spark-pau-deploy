@@ -98,7 +98,7 @@ abstract contract PostDeployTestBase is Test {
     /*** State Assertions                                                                       ***/
     /**********************************************************************************************/
 
-    function _assertAdministeredAgentState(address relayer, address freezer) internal view {
+    function _assertAdministeredAgentState() internal view {
         assertEq(administeredAgent.adminCount(),   1);
         assertEq(administeredAgent.actorCount(),   1);
         assertEq(administeredAgent.grantorCount(), 0);
@@ -146,7 +146,7 @@ abstract contract PostDeployTestBase is Test {
         assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, address(pauFactory)), false);
     }
 
-    function _assertRateLimitsState() internal view {
+    function _assertRateLimitsInitializationState() internal view {
         assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, admin),               true);
         assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    address(controller)), true);
 
@@ -160,7 +160,7 @@ abstract contract PostDeployTestBase is Test {
         assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, address(pauFactory)), false);
     }
 
-    function _assertControllerState() internal view {
+    function _assertControllerInitializationState() internal view {
         assertEq(controller.accessControls(), address(accessControls));
         assertEq(controller.beacon(),         address(beacon));
         assertEq(controller.proxy(),          address(almProxy));
@@ -463,13 +463,12 @@ abstract contract PostDeployTestBase is Test {
     function _assertERC4626MaxExchangeRateSetEvent(
         VmSafe.EthGetLogs memory log,
         address                  token,
-        uint256                  maxExchangeRate,
-        uint256                  maxPercentDelta
+        uint256                  maxExchangeRate
     ) internal pure {
         assertEq(log.topics[0],             IERC4626Facet.ERC4626MaxExchangeRateSet.selector);
         assertEq(_toAddress(log.topics[1]), token);
 
-        assertApproxEqRel(abi.decode(log.data, (uint256)), maxExchangeRate, maxPercentDelta);
+        assertEq(abi.decode(log.data, (uint256)), maxExchangeRate);
     }
 
 }

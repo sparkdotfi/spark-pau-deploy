@@ -163,12 +163,11 @@ contract DeploySparkPAUFullMainnet is DeploySparkPAUFullBase {
     }
 
     function _getIntegrationIds() internal override returns (bytes32[] memory integrationIds) {
-        integrationIds = new bytes32[](3);
+        integrationIds = new bytes32[](2);
 
 
         integrationIds[0] = "CCTP_FACET";
-        integrationIds[1] = "PSM_FACET";
-        integrationIds[2] = "ERC4626_FACET";
+        integrationIds[1] = "ERC4626_FACET";
 
         return integrationIds;
     }

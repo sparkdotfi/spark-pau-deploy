@@ -53,7 +53,7 @@ abstract contract XLayerPostDeployTestsBase is PostDeployTestBase {
     }
 
     function test_administeredAgentState() external view {
-        _assertAdministeredAgentState(relayer, freezer);
+        _assertAdministeredAgentState();
     }
 
     function test_accessControlsState() external view {
@@ -65,11 +65,11 @@ abstract contract XLayerPostDeployTestsBase is PostDeployTestBase {
     }
 
     function test_rateLimitsState() external view {
-        _assertRateLimitsState();
+        _assertRateLimitsInitializationState();
     }
 
     function test_controllerState() external view {
-        _assertControllerState();
+        _assertControllerInitializationState();
     }
 
     function test_rateLimitsAndControllerOnboardingState() external view {
@@ -136,7 +136,7 @@ contract XLayerPostDeployTestsStaging is XLayerPostDeployTestsBase {
         string memory json = vm.readFile("deployments/xlayer-staging.json");
 
         // CCTP facet onboarding.
-        ETHEREUM_CCTP_MINT_RECIPIENT = 0xFB2252689E3a9c5d89cBBb65a174dba1163a8f19;
+        ETHEREUM_CCTP_MINT_RECIPIENT = 0x5A7e6fF9A4836275b469C7413fA40294661A2017;
 
         CCTP_MIN_FEE_CAP_RATE = 0;
         CCTP_MAX_FEE_CAP_RATE = 100;
@@ -171,7 +171,7 @@ contract XLayerPostDeployTestsStaging is XLayerPostDeployTestsBase {
     }
 
     function _getBlock() internal override pure returns (uint256) {
-        return 70084000;
+        return 70207296;
     }
 
 }
