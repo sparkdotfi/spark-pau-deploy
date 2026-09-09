@@ -85,6 +85,8 @@ abstract contract CrossChainE2ETestBase is Test {
     }
 
     function test_e2e_roundTrip() external {
+        xlayer.selectFork();
+
         // Step 1: User deposits USDC into spUSDC on X Layer.
 
         deal(address(xlayerUsdc), user, DEPOSIT_AMOUNT);
@@ -305,8 +307,8 @@ contract CrossChainE2ETestStaging is CrossChainE2ETestBase {
         susdc             = IERC4626(Ethereum.SUSDC);
         usdc              = IERC20(Ethereum.USDC);
 
-        mainnet = getChain("mainnet").createSelectFork(25930847); // September 8, 2026
-        xlayer  = getChain("xlayer").createSelectFork(70079681);  // September 8, 2026
+        mainnet = getChain("mainnet").createSelectFork(25941444); // September 9, 2026
+        xlayer  = getChain("xlayer").createSelectFork(70207535);  // September 9, 2026
 
         bridge = CCTPv2BridgeTesting.init(Bridge({
             bridgeType                     : BridgeType.CCTP_V2,
@@ -318,12 +320,6 @@ contract CrossChainE2ETestStaging is CrossChainE2ETestBase {
             lastDestinationLogIndex        : 0,
             extraData                      : ""
         }));
-
-        // Set deposit cap for spUSDC for staging.
-        xlayer.selectFork();
-
-        vm.prank(ADMIN);
-        spusdc.setDepositCap(1_000_000e6);
     }
 
 }
