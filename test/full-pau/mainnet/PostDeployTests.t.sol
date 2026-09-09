@@ -24,7 +24,6 @@ interface IERC4626Like {
 abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
 
     bytes32 internal constant CCTP_FACET_ID    = "CCTP_FACET";
-    bytes32 internal constant PSM_FACET_ID     = "PSM_FACET";
     bytes32 internal constant ERC4626_FACET_ID = "ERC4626_FACET";
 
     uint32 internal constant XLAYER_CCTP_DOMAIN = 37;
@@ -36,12 +35,8 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
 
     uint256 internal CCTP_USDC_MAX_AMOUNT;
     uint256 internal CCTP_USDC_SLOPE;
-    uint256 internal PSM_USDC_MAX_AMOUNT;
-    uint256 internal PSM_USDC_SLOPE;
     uint256 internal ERC4626_USDC_MAX_AMOUNT;
     uint256 internal ERC4626_USDC_SLOPE;
-    uint256 internal ERC4626_MAX_EXPECTED_ASSETS;
-    uint256 internal ERC4626_MAX_EXCHANGE_RATE_TOLERANCE;
 
     function setUp() public virtual override {
         super.setUp();
@@ -222,7 +217,7 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
     function _assertRateLimitsEvents() internal {
         VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(rateLimits), "");
 
-        assertEq(logs.length, 12); // 6 role grant/revoke events + 6 rate limit set events.
+        assertEq(logs.length, 10); // 6 role grant/revoke events + 4 rate limit set events.
 
         // Grant assembler DEFAULT_ADMIN_ROLE
         _assertRoleGrantedEvent({
@@ -272,25 +267,9 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
             slope     : CCTP_USDC_SLOPE
         });
 
-        // Assert psm_usdcToUSDSSwapRateLimitKey rate limit
-        _assertRateLimitDataSetEvent({
-            log       : logs[6],
-            key       : controller.psm_usdcToUSDSSwapRateLimitKey(),
-            maxAmount : PSM_USDC_MAX_AMOUNT,
-            slope     : PSM_USDC_SLOPE
-        });
-
-        // Assert psm_usdsToUSDCSwapRateLimitKey rate limit
-        _assertRateLimitDataSetEvent({
-            log       : logs[7],
-            key       : controller.psm_usdsToUSDCSwapRateLimitKey(),
-            maxAmount : PSM_USDC_MAX_AMOUNT,
-            slope     : PSM_USDC_SLOPE
-        });
-
         // Assert erc4626_getDepositRateLimitKey(SUSDC, USDC) rate limit
         _assertRateLimitDataSetEvent({
-            log       : logs[8],
+            log       : logs[6],
             key       : controller.erc4626_getDepositRateLimitKey(Ethereum.SUSDC, Ethereum.USDC),
             maxAmount : ERC4626_USDC_MAX_AMOUNT,
             slope     : ERC4626_USDC_SLOPE
@@ -298,7 +277,7 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
 
         // Assert erc4626_getWithdrawRateLimitKey(SUSDC) rate limit
         _assertRateLimitDataSetEvent({
-            log       : logs[9],
+            log       : logs[7],
             key       : controller.erc4626_getWithdrawRateLimitKey(Ethereum.SUSDC),
             maxAmount : ERC4626_USDC_MAX_AMOUNT,
             slope     : ERC4626_USDC_SLOPE
@@ -306,7 +285,7 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
 
         // Grant admin DEFAULT_ADMIN_ROLE
         _assertRoleGrantedEvent({
-            log     : logs[10],
+            log     : logs[8],
             role    : DEFAULT_ADMIN_ROLE,
             account : admin,
             sender  : deployer
@@ -314,7 +293,7 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
 
         // Revoke deployer DEFAULT_ADMIN_ROLE
         _assertRoleRevokedEvent({
-            log     : logs[11],
+            log     : logs[9],
             role    : DEFAULT_ADMIN_ROLE,
             account : deployer,
             sender  : deployer
@@ -337,21 +316,15 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
             integrationId : CCTP_FACET_ID
         });
 
-        // Assert PSM_FACET_ID integration set event
-        _assertIntegrationSetEvent({
-            log           : logs[2],
-            integrationId : PSM_FACET_ID
-        });
-
         // Assert ERC4626_FACET_ID integration set event
         _assertIntegrationSetEvent({
-            log           : logs[3],
+            log           : logs[2],
             integrationId : ERC4626_FACET_ID
         });
 
         // Assert CCTPDomainParametersSet event
         _assertCCTPDomainParametersSetEvent({
-            log               : logs[4],
+            log               : logs[3],
             destinationDomain : XLAYER_CCTP_DOMAIN,
             mintRecipient     : XLAYER_CCTP_MINT_RECIPIENT,
             minFeeCapRate     : CCTP_MIN_FEE_CAP_RATE,
@@ -360,10 +333,9 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
 
         // Assert ERC4626MaxExchangeRateSet event
         _assertERC4626MaxExchangeRateSetEvent({
-            log             : logs[5],
+            log             : logs[4],
             token           : Ethereum.SUSDC,
-            maxExchangeRate : _expectedMaxExchangeRate(),
-            maxPercentDelta : ERC4626_MAX_EXCHANGE_RATE_TOLERANCE
+            maxExchangeRate : 1e25
         });
     }
 
@@ -400,11 +372,10 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
         // 0. Controller Integrations
         IEI.Integration[] memory integrations = controller.integrations();
 
-        assertEq(integrations.length, 3);
+        assertEq(integrations.length, 2);
 
         assertEq(integrations[0].id, CCTP_FACET_ID);
-        assertEq(integrations[1].id, PSM_FACET_ID);
-        assertEq(integrations[2].id, ERC4626_FACET_ID);
+        assertEq(integrations[1].id, ERC4626_FACET_ID);
 
         for (uint256 i = 0; i < integrations.length; i++) {
             _assertIntegration(integrations[i].id);
@@ -428,37 +399,15 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
         _assertRateLimitData(controller.cctp_toCCTPRateLimitKey(),                        CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
         _assertRateLimitData(controller.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN), CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
 
-        // 2. PSM facet onboarding (No controller state changes to assert)
+        // 2. ERC4626 facet onboarding
+
+        // 2a. Controller state
+        assertEq(controller.erc4626_getMaxExchangeRate(Ethereum.SUSDC), 1e25);
 
         // 2b. Rate limits state
 
-        _assertRateLimitData(controller.psm_usdcToUSDSSwapRateLimitKey(), PSM_USDC_MAX_AMOUNT, PSM_USDC_SLOPE);
-        _assertRateLimitData(controller.psm_usdsToUSDCSwapRateLimitKey(), PSM_USDC_MAX_AMOUNT, PSM_USDC_SLOPE);
-
-        // 3. ERC4626 facet onboarding
-
-        // 3a. Controller state
-        assertApproxEqRel(
-            controller.erc4626_getMaxExchangeRate(Ethereum.SUSDC),
-            _expectedMaxExchangeRate(),
-            ERC4626_MAX_EXCHANGE_RATE_TOLERANCE
-        );
-
-        // 3b. Rate limits state
-
         _assertRateLimitData(controller.erc4626_getDepositRateLimitKey(Ethereum.SUSDC, Ethereum.USDC), ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
         _assertRateLimitData(controller.erc4626_getWithdrawRateLimitKey(Ethereum.SUSDC),               ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
-    }
-
-    /**********************************************************************************************/
-    /*** Helper Functions                                                                       ***/
-    /**********************************************************************************************/
-
-    /// Mirrors the configure script: EXCHANGE_RATE_PRECISION * 1.2e18 / convertToShares(1e18).
-    /// Share price can drift after config, so callers compare with a relative tolerance.
-    function _expectedMaxExchangeRate() internal view returns (uint256) {
-        return controller.erc4626_EXCHANGE_RATE_PRECISION() * ERC4626_MAX_EXPECTED_ASSETS
-            / IERC4626Like(Ethereum.SUSDC).convertToShares(1e18);
     }
 
 }
@@ -478,16 +427,9 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
         CCTP_USDC_MAX_AMOUNT  = 10e6;
         CCTP_USDC_SLOPE       = uint256(100e6) / 1 hours;
 
-        // PSM facet onboarding.
-        PSM_USDC_MAX_AMOUNT  = 10e6;
-        PSM_USDC_SLOPE       = uint256(100e6) / 1 hours;
-
         // ERC4626 facet onboarding.
         ERC4626_USDC_MAX_AMOUNT = 10e6;
         ERC4626_USDC_SLOPE      = uint256(100e6) / 1 hours;
-
-        ERC4626_MAX_EXPECTED_ASSETS         = 1.2e18;
-        ERC4626_MAX_EXCHANGE_RATE_TOLERANCE = 0.001e18;  // 0.1%
 
         string memory json = vm.readFile("deployments/mainnet-staging.json");
 

@@ -469,13 +469,12 @@ abstract contract PostDeployTestBase is Test {
     function _assertERC4626MaxExchangeRateSetEvent(
         VmSafe.EthGetLogs memory log,
         address                  token,
-        uint256                  maxExchangeRate,
-        uint256                  maxPercentDelta
+        uint256                  maxExchangeRate
     ) internal pure {
         assertEq(log.topics[0],             IERC4626Facet.ERC4626MaxExchangeRateSet.selector);
         assertEq(_toAddress(log.topics[1]), token);
 
-        assertApproxEqRel(abi.decode(log.data, (uint256)), maxExchangeRate, maxPercentDelta);
+        assertEq(abi.decode(log.data, (uint256)), maxExchangeRate);
     }
 
 }

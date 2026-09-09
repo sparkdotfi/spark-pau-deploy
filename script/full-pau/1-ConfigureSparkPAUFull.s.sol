@@ -9,6 +9,12 @@ import { ScriptTools } from "../../lib/dss-test/src/ScriptTools.sol";
 
 import { IMainnetControllerFull as IControllerFull } from "../../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
 
+interface IERC20Like {
+
+    function decimals() external view returns (uint8);
+
+}
+
 interface IAccessControlsLike {
 
     function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
@@ -197,7 +203,6 @@ contract ConfigureSparkPAUFullMainnet is ConfigureSparkPAUFullBase {
         susdc = config.readAddress(".susdc");
 
         _onboardCCTPFacet();
-        _onboardPSMFacet();
         _onboardERC4626Facet();
     }
 
@@ -220,20 +225,6 @@ contract ConfigureSparkPAUFullMainnet is ConfigureSparkPAUFullBase {
         );
     }
 
-    function _onboardPSMFacet() internal {
-        rateLimits.setRateLimitData(
-            controller.psm_usdcToUSDSSwapRateLimitKey(),
-            10e6,
-            uint256(100e6) / 1 hours
-        );
-
-        rateLimits.setRateLimitData(
-            controller.psm_usdsToUSDCSwapRateLimitKey(),
-            10e6,
-            uint256(100e6) / 1 hours
-        );
-    }
-
     function _onboardERC4626Facet() internal {
         bytes32 depositKey  = controller.erc4626_getDepositRateLimitKey(susdc, usdc);
         bytes32 withdrawKey = controller.erc4626_getWithdrawRateLimitKey(susdc);
@@ -243,8 +234,8 @@ contract ConfigureSparkPAUFullMainnet is ConfigureSparkPAUFullBase {
 
         controller.erc4626_setMaxExchangeRate(
             susdc,
-            ISparkVaultLike(susdc).convertToShares(1e18),
-            1.2e18
+            1 * 10 ** IERC20Like(susdc).decimals(),
+            10 * 10 ** IERC20Like(usdc).decimals()
         );
     }
 
