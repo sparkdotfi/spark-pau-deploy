@@ -6,6 +6,14 @@ import { Script, stdJson } from "../../lib/forge-std/src/Script.sol";
 
 import { ScriptTools } from "../../lib/dss-test/src/ScriptTools.sol";
 
+import { PAUDeployment } from "./PAUDeployment.sol";
+
+interface IControllerLike {
+
+    function beacon() external view returns (address);
+
+}
+
 interface IDefaultPAUAssembler {
 
     struct AdminConfig {
@@ -45,31 +53,37 @@ abstract contract DeploySparkPAUFullBase is Script {
     IDefaultPAUAssembler defaultPAUAssembler;
 
     address internal admin;
+    address internal deployer;
     address internal relayer;
     address internal freezer;
 
-    function run() public virtual {
+    PAUDeployment public deployment;
+
+    function run() public virtual returns (PAUDeployment memory) {
         _setXLayerAndRHChainForks();
 
         string memory chain = vm.envOr("CHAIN", string("mainnet"));
 
-        vm.createSelectFork(getChain(chain).rpcUrl);
+        _selectFork(chain);
 
         vm.setEnv("FOUNDRY_ROOT_CHAINID", vm.toString(block.chainid));
 
         string memory env      = vm.envString("ENV");
         string memory fileSlug = string(abi.encodePacked("deploy-pau-with-assembler-", chain, "-", env));
-        string memory config   = ScriptTools.loadConfig(fileSlug);
+        string memory config   = _loadConfig(fileSlug);
 
         require(block.chainid == config.readUint(".chainId"), "DeploySparkPAUFull/Invalid chain ID");
 
-        admin   = config.readAddress(".admin");
-        relayer = config.readAddress(".relayer");
-        freezer = config.readAddress(".freezer");
+        admin    = config.readAddress(".admin");
+        deployer = config.readAddress(".deployer");
+        relayer  = config.readAddress(".relayer");
+        freezer  = config.readAddress(".freezer");
 
         defaultPAUAssembler = IDefaultPAUAssembler(config.readAddress(".defaultPAUAssembler"));
 
-        vm.startBroadcast();
+        vm.startBroadcast(deployer);
+
+        _checkBroadcaster(deployer);
 
         // Step 1: Prepare configs.
 
@@ -91,11 +105,42 @@ abstract contract DeploySparkPAUFullBase is Script {
 
         console2.log("Deployed PAU with default PAUAssembler");
 
-        ScriptTools.exportContract(fileSlug, "proxy",          address(proxy));
-        ScriptTools.exportContract(fileSlug, "controller",     address(controller));
-        ScriptTools.exportContract(fileSlug, "accessControls", address(accessControls));
-        ScriptTools.exportContract(fileSlug, "rateLimits",     address(rateLimits));
-        ScriptTools.exportContract(fileSlug, "allocatorAgent", allocatorAgents[0]);
+        deployment = PAUDeployment({
+            proxy          : proxy,
+            controller     : controller,
+            accessControls : accessControls,
+            rateLimits     : rateLimits,
+            allocatorAgent : allocatorAgents[0],
+            beacon         : IControllerLike(controller).beacon()
+        });
+
+        _export(fileSlug, deployment);
+
+        return deployment;
+    }
+
+    /**********************************************************************************************/
+    /*** Hooks (overridden by the fork tests)                                                   ***/
+    /**********************************************************************************************/
+
+    function _selectFork(string memory chain) internal virtual {
+        vm.createSelectFork(getChain(chain).rpcUrl);
+    }
+
+    function _loadConfig(string memory fileSlug) internal virtual returns (string memory) {
+        return ScriptTools.loadConfig(fileSlug);
+    }
+
+    function _checkBroadcaster(address _deployer) internal virtual {
+        require(msg.sender == _deployer, "DeploySparkPAUFull/sender-not-deployer");
+    }
+
+    function _export(string memory fileSlug, PAUDeployment memory _deployment) internal virtual {
+        ScriptTools.exportContract(fileSlug, "proxy",          _deployment.proxy);
+        ScriptTools.exportContract(fileSlug, "controller",     _deployment.controller);
+        ScriptTools.exportContract(fileSlug, "accessControls", _deployment.accessControls);
+        ScriptTools.exportContract(fileSlug, "rateLimits",     _deployment.rateLimits);
+        ScriptTools.exportContract(fileSlug, "allocatorAgent", _deployment.allocatorAgent);
     }
 
     /**********************************************************************************************/
@@ -143,13 +188,13 @@ abstract contract DeploySparkPAUFullBase is Script {
     function _setXLayerAndRHChainForks() internal {
         setChain("xlayer", ChainData({
             name    : "XLayer",
-            rpcUrl  : vm.envString("XLAYER_RPC_URL"),
+            rpcUrl  : vm.envOr("XLAYER_RPC_URL", string("https://rpc.xlayer.tech")),
             chainId : 196
         }));
 
         setChain("robinhood_chain", ChainData({
             name    : "Robinhood Chain",
-            rpcUrl  : vm.envString("RH_RPC_URL"),
+            rpcUrl  : vm.envOr("RH_RPC_URL", string("")),
             chainId : 4663
         }));
     }
@@ -158,8 +203,8 @@ abstract contract DeploySparkPAUFullBase is Script {
 
 contract DeploySparkPAUFullMainnet is DeploySparkPAUFullBase {
 
-    function run() public override {
-        super.run();
+    function run() public override returns (PAUDeployment memory) {
+        return super.run();
     }
 
     function _getIntegrationIds() internal override returns (bytes32[] memory integrationIds) {
@@ -176,8 +221,8 @@ contract DeploySparkPAUFullMainnet is DeploySparkPAUFullBase {
 
 contract DeploySparkPAUFullXLayer is DeploySparkPAUFullBase {
 
-    function run() public override {
-        super.run();
+    function run() public override returns (PAUDeployment memory) {
+        return super.run();
     }
 
     function _getIntegrationIds() internal override returns (bytes32[] memory integrationIds) {

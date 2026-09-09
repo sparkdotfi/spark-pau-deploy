@@ -13,8 +13,9 @@
 #
 # Deployment order (per chain + env):
 #   1. deploy    — calls DefaultPAUAssembler.deploy with the integration ids, admin config and
-#                  allocator agent config. The `admin` in the deploy input is the deployer, so that
-#                  the configure step below can still run.
+#                  allocator agent config. The `admin` in the deploy input is the same address as
+#                  `deployer`, so that the configure step below can still run; `deployer` is the
+#                  broadcaster and must match --sender.
 #                  Input:  script/input/{chainId}/deploy-pau-with-assembler-{chain}-{env}.json
 #                  Output: script/output/{chainId}/deploy-pau-with-assembler-{chain}-{env}-{ts}.json
 #   2. configure — onboards each facet (rate limits, CCTP domain parameters, ERC4626 max exchange
@@ -23,6 +24,12 @@
 #
 # Both scripts are selected by CHAIN and ENV. Every value they write is read from the input files;
 # keys prefixed with an underscore in those files are documentation only.
+#
+# Testing a deployment (see "Fork deploy tests" and "Post deploy tests" below):
+#   - before broadcasting, `make test-forkdeploy` runs both scripts unchanged on a fork of the target
+#     chain and asserts the resulting state and events with the post-deploy assertions;
+#   - after broadcasting, `make test-postdeploy` asserts the same things against the real chain,
+#     reading the addresses from deployments/*.json and the events from Etherscan.
 
 # --------------------------------------------------------------------------------------------------
 # Build & Test                                                                                     #

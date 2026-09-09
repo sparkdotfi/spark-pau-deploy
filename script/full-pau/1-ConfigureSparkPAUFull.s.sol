@@ -104,14 +104,14 @@ abstract contract ConfigureSparkPAUFullBase is Script {
 
         string memory chain = vm.envOr("CHAIN", string("mainnet"));
 
-        vm.createSelectFork(getChain(chain).rpcUrl);
+        _selectFork(chain);
 
         vm.setEnv("FOUNDRY_ROOT_CHAINID", vm.toString(block.chainid));
 
         string memory env      = vm.envString("ENV");
         string memory fileSlug = string(abi.encodePacked("config-pau-with-assembler-", chain, "-", env));
 
-        config = ScriptTools.loadConfig(fileSlug);
+        config = _loadConfig(fileSlug);
 
         require(block.chainid == config.readUint(".chainId"), "ConfigureSparkPAUFullBase/invalid-chain-id");
 
@@ -128,9 +128,9 @@ abstract contract ConfigureSparkPAUFullBase is Script {
 
         require(admin != deployer, "ConfigureSparkPAUFullBase/admin-is-deployer");
 
-        vm.startBroadcast();
+        vm.startBroadcast(deployer);
 
-        require(msg.sender == deployer, "ConfigureSparkPAUFullBase/sender-not-deployer");
+        _checkBroadcaster(deployer);
 
         // Step 1: Onboard Facets
 
@@ -143,6 +143,22 @@ abstract contract ConfigureSparkPAUFullBase is Script {
         console2.log("Deployer removed as admin of Beacon, AccessControls, AdministeredAgent, RateLimits and ALMProxy");
 
         vm.stopBroadcast();
+    }
+
+    /**********************************************************************************************/
+    /*** Hooks (overridden by the fork tests)                                                   ***/
+    /**********************************************************************************************/
+
+    function _selectFork(string memory chain) internal virtual {
+        vm.createSelectFork(getChain(chain).rpcUrl);
+    }
+
+    function _loadConfig(string memory fileSlug) internal virtual returns (string memory) {
+        return ScriptTools.loadConfig(fileSlug);
+    }
+
+    function _checkBroadcaster(address _deployer) internal virtual {
+        require(msg.sender == _deployer, "ConfigureSparkPAUFullBase/sender-not-deployer");
     }
 
     /**********************************************************************************************/
@@ -174,13 +190,13 @@ abstract contract ConfigureSparkPAUFullBase is Script {
     function _setXLayerAndRHChainForks() internal {
         setChain("xlayer", ChainData({
             name    : "XLayer",
-            rpcUrl  : vm.envString("XLAYER_RPC_URL"),
+            rpcUrl  : vm.envOr("XLAYER_RPC_URL", string("https://rpc.xlayer.tech")),
             chainId : 196
         }));
 
         setChain("robinhood_chain", ChainData({
             name    : "Robinhood Chain",
-            rpcUrl  : vm.envString("RH_RPC_URL"),
+            rpcUrl  : vm.envOr("RH_RPC_URL", string("")),
             chainId : 4663
         }));
     }
