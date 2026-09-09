@@ -152,7 +152,7 @@ abstract contract PostDeployTestBase is Test {
         assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, address(pauFactory)), false);
     }
 
-    function _assertRateLimitsState() internal view {
+    function _assertRateLimitsInitializationState() internal view {
         assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, admin),               true);
         assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    address(controller)), true);
 
@@ -166,7 +166,7 @@ abstract contract PostDeployTestBase is Test {
         assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, address(pauFactory)), false);
     }
 
-    function _assertControllerState() internal view {
+    function _assertControllerInitializationState() internal view {
         assertEq(controller.accessControls(), address(accessControls));
         assertEq(controller.beacon(),         address(beacon));
         assertEq(controller.proxy(),          address(almProxy));

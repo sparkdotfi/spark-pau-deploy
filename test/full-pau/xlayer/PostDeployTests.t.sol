@@ -63,11 +63,11 @@ abstract contract XLayerPostDeployTestsBase is PostDeployTestBase {
     }
 
     function test_rateLimitsState() external view {
-        _assertRateLimitsState();
+        _assertRateLimitsInitializationState();
     }
 
     function test_controllerState() external view {
-        _assertControllerState();
+        _assertControllerInitializationState();
     }
 
     function test_rateLimitsAndControllerOnboardingState() external view {

@@ -387,12 +387,12 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
     }
 
     function test_rateLimitsStateAndEvents() external {
-        _assertRateLimitsState();
+        _assertRateLimitsInitializationState();
         _assertRateLimitsEvents();
     }
 
     function test_controllerStateAndEvents() external {
-        _assertControllerState();
+        _assertControllerInitializationState();
         _assertControllerEvents();
     }
 
