@@ -1,0 +1,19 @@
+{
+  "_info": "Spark XLayer Staging PAU configuration.",
+
+  "chainId": 196,
+
+  "admin": "0xb52991d5d29f371f493910c36f5A849b3748Cc28",
+  "beacon": "0x995cBd5de8222C54CbfE56728FD31cC3e53d119B",
+  "administeredAgent": "0x92aa12332e80B72bc8Af74F49192D1e01c46E2Ad",
+  "controller": "0x64c4C5742A178a4De3BbE342bCd905045c46885D",
+  "deployer": "0x23d43f3189Ab9CEBfFcC0352C0490387e3105FB3",
+
+  "_cctpFacet": "Values to onboard the CCTP facet.",
+  "ethereumAlmProxy": "0x5A7e6fF9A4836275b469C7413fA40294661A2017",
+  "ethereumDomainId": 0,
+
+  "_transferAssetFacet": "Values to onboard the Transfer Asset facet.",
+  "usdc": "0xB6CEceAB302E2E4948951eE7843FC24E92933061",
+  "spusdc": "0x0dcbB9AdB190Be6F8F15b3A31852E5d47d2549e0"
+}
