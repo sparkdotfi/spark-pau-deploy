@@ -9,6 +9,8 @@ import { PostDeployTestBase } from "../../PostDeployTestBase.t.sol";
 
 interface ISparkVaultLike {
 
+    event DepositCapSet(uint256 oldCap, uint256 newCap);
+
     function TAKER_ROLE() external view returns (bytes32);
 
     function hasRole(bytes32 role, address account) external view returns (bool);
@@ -44,11 +46,17 @@ abstract contract XLayerPostDeployTestsBase is PostDeployTestBase {
         super.setUp();
 
         vm.createSelectFork(getChain("xlayer").rpcUrl, _getBlock());
+
+        _setUpDeployment();
     }
 
     function _getBlock() internal virtual pure returns (uint256) {
         return 0;
     }
+
+    /**********************************************************************************************/
+    /*** State tests                                                                            ***/
+    /**********************************************************************************************/
 
     function test_administeredAgentState() external view {
         _assertAdministeredAgentState();
@@ -124,13 +132,199 @@ abstract contract XLayerPostDeployTestsBase is PostDeployTestBase {
 
 }
 
+abstract contract XLayerPostDeployEventTestsBase is XLayerPostDeployTestsBase {
+
+    /**********************************************************************************************/
+    /*** Event assertions helpers                                                               ***/
+    /**********************************************************************************************/
+
+    function _assertRateLimitsEvents() internal {
+        RawLog[] memory logs = _logsFor(address(rateLimits));
+
+        assertEq(logs.length, 10); // 6 role grant/revoke events + 4 rate limit set events.
+
+        // Grant assembler DEFAULT_ADMIN_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[0],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : address(assembler),
+            sender  : address(pauFactory)
+        });
+
+        // Grant deployer DEFAULT_ADMIN_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[1],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : deployer,
+            sender  : address(assembler)
+        });
+
+        // Grant controller CONTROLLER_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[2],
+            role    : CONTROLLER_ROLE,
+            account : address(controller),
+            sender  : address(assembler)
+        });
+
+        // Revoke assembler DEFAULT_ADMIN_ROLE
+        _assertRoleRevokedEvent({
+            log     : logs[3],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : address(assembler),
+            sender  : address(assembler)
+        });
+
+        // Assert cctp_toCCTPRateLimitKey rate limit
+        _assertRateLimitDataSetEvent({
+            log       : logs[4],
+            key       : controller.cctp_toCCTPRateLimitKey(),
+            maxAmount : CCTP_USDC_MAX_AMOUNT,
+            slope     : CCTP_USDC_SLOPE
+        });
+
+        // Assert cctp_getToDomainRateLimitKey rate limit
+        _assertRateLimitDataSetEvent({
+            log       : logs[5],
+            key       : controller.cctp_getToDomainRateLimitKey(ETHEREUM_CCTP_DOMAIN),
+            maxAmount : CCTP_USDC_MAX_AMOUNT,
+            slope     : CCTP_USDC_SLOPE
+        });
+
+        // Assert transferAsset_getTransferRateLimitKey(USDC, SPUSDC) rate limit
+        _assertRateLimitDataSetEvent({
+            log       : logs[6],
+            key       : controller.transferAsset_getTransferRateLimitKey(USDC, SPUSDC),
+            maxAmount : TRANSFER_ASSET_USDC_MAX_AMOUNT,
+            slope     : TRANSFER_ASSET_USDC_SLOPE
+        });
+
+        // Assert sparkVault_getTakeRateLimitKey(SPUSDC) rate limit
+        _assertRateLimitDataSetEvent({
+            log       : logs[7],
+            key       : controller.sparkVault_getTakeRateLimitKey(SPUSDC),
+            maxAmount : SPARK_VAULT_USDC_MAX_AMOUNT,
+            slope     : SPARK_VAULT_USDC_SLOPE
+        });
+
+        // Grant admin DEFAULT_ADMIN_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[8],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : admin,
+            sender  : deployer
+        });
+
+        // Revoke deployer DEFAULT_ADMIN_ROLE
+        _assertRoleRevokedEvent({
+            log     : logs[9],
+            role    : DEFAULT_ADMIN_ROLE,
+            account : deployer,
+            sender  : deployer
+        });
+    }
+
+    function _assertControllerEvents() internal {
+        RawLog[] memory logs = _logsFor(address(controller));
+
+        assertEq(logs.length, 5);
+
+        // Assert controller Initialized event
+        _assertInitializedEvent({
+            log: logs[0]
+        });
+
+        // Assert CCTP_FACET_ID integration set event
+        _assertIntegrationSetEvent({
+            log           : logs[1],
+            integrationId : CCTP_FACET_ID
+        });
+
+        // Assert TRANSFER_ASSET_FACET_ID integration set event
+        _assertIntegrationSetEvent({
+            log           : logs[2],
+            integrationId : TRANSFER_ASSET_FACET_ID
+        });
+
+        // Assert SPARK_VAULT_FACET_ID integration set event
+        _assertIntegrationSetEvent({
+            log           : logs[3],
+            integrationId : SPARK_VAULT_FACET_ID
+        });
+
+        // Assert CCTPDomainParametersSet event
+        _assertCCTPDomainParametersSetEvent({
+            log               : logs[4],
+            destinationDomain : ETHEREUM_CCTP_DOMAIN,
+            mintRecipient     : ETHEREUM_CCTP_MINT_RECIPIENT,
+            minFeeCapRate     : CCTP_MIN_FEE_CAP_RATE,
+            maxFeeCapRate     : CCTP_MAX_FEE_CAP_RATE
+        });
+    }
+
+    function _assertSparkVaultEvents() internal {
+        RawLog[] memory logs = _logsFor(SPUSDC);
+
+        assertEq(logs.length, 2);
+
+        // Assert DepositCapSet event
+        _assertDepositCapSetEvent({
+            log        : logs[0],
+            depositCap : 1_000_000e6
+        });
+
+        // Grant almProxy TAKER_ROLE
+        _assertRoleGrantedEvent({
+            log     : logs[1],
+            role    : ISparkVaultLike(SPUSDC).TAKER_ROLE(),
+            account : address(almProxy),
+            sender  : deployer
+        });
+    }
+
+    function _assertDepositCapSetEvent(RawLog memory log, uint256 depositCap) internal pure {
+        ( , uint256 loggedNewCap ) = abi.decode(log.data, (uint256, uint256));
+
+        assertEq(log.topics[0], ISparkVaultLike.DepositCapSet.selector);
+
+        assertEq(loggedNewCap, depositCap);
+    }
+
+    /**********************************************************************************************/
+    /*** Event tests                                                                            ***/
+    /**********************************************************************************************/
+
+    function test_administeredAgentEvents() external {
+        _assertAdministeredAgentEvents();
+    }
+
+    function test_accessControlsEvents() external {
+        _assertAccessControlsEvents();
+    }
+
+    function test_almProxyEvents() external {
+        _assertALMProxyEvents();
+    }
+
+    function test_rateLimitsEvents() external {
+        _assertRateLimitsEvents();
+    }
+
+    function test_controllerEvents() external {
+        _assertControllerEvents();
+    }
+
+    function test_sparkVaultEvents() external {
+        _assertSparkVaultEvents();
+    }
+
+}
+
 contract XLayerPostDeployTestsStaging is XLayerPostDeployTestsBase {
 
     using stdJson for string;
 
-    function setUp() public override {
-        super.setUp();
-
+    function _setUpDeployment() internal override {
         string memory json = vm.readFile("deployments/xlayer-staging.json");
 
         // CCTP facet onboarding.
@@ -151,21 +345,28 @@ contract XLayerPostDeployTestsStaging is XLayerPostDeployTestsBase {
         SPARK_VAULT_USDC_MAX_AMOUNT = 10e6;
         SPARK_VAULT_USDC_SLOPE      = uint256(100e6) / 1 hours;
 
-        _setUpAddresses({
-            _agentFactory      : json.readAddress(".agentFactory"),
-            _assembler         : json.readAddress(".defaultPAUAssembler"),
-            _beacon            : json.readAddress(".beacon"),
-            _pauFactory        : json.readAddress(".pauFactory"),
-            _accessControls    : json.readAddress(".accessControls"),
-            _administeredAgent : json.readAddress(".administeredAgent"),
-            _almProxy          : json.readAddress(".proxy"),
-            _controller        : json.readAddress(".controller"),
-            _rateLimits        : json.readAddress(".rateLimits"),
-            _admin             : json.readAddress(".admin"),
-            _deployer          : json.readAddress(".deployer"),
-            _relayer           : json.readAddress(".relayer"),
-            _freezer           : json.readAddress(".freezer")
-        });
+        _setUpAddresses(Addresses({
+            agentFactory      : json.readAddress(".agentFactory"),
+            assembler         : json.readAddress(".defaultPAUAssembler"),
+            beacon            : json.readAddress(".beacon"),
+            pauFactory        : json.readAddress(".pauFactory"),
+            accessControls    : json.readAddress(".accessControls"),
+            administeredAgent : json.readAddress(".administeredAgent"),
+            almProxy          : json.readAddress(".proxy"),
+            controller        : json.readAddress(".controller"),
+            rateLimits        : json.readAddress(".rateLimits"),
+            admin             : json.readAddress(".admin"),
+            deployer          : json.readAddress(".deployer"),
+            relayer           : json.readAddress(".relayer"),
+            freezer           : json.readAddress(".freezer")
+        }));
+    }
+
+    // Not exercised: this contract inherits the state tests only, because the Etherscan v2 log
+    // endpoint does not cover chain 196. The X Layer events are asserted by XLayerForkDeployTests,
+    // which records them on a fork.
+    function _logsFor(address emitter) internal override returns (RawLog[] memory logs) {
+        return _getEvents(block.chainid, emitter, "");
     }
 
     function _getBlock() internal override pure returns (uint256) {

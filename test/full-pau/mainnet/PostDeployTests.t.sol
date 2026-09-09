@@ -3,23 +3,11 @@ pragma solidity ^0.8.34;
 
 import { stdJson }  from "../../../lib/forge-std/src/StdJson.sol";
 
-import { VmSafe } from "../../../lib/forge-std/src/Vm.sol";
-
-import { IAccessControl } from "../../../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
-
 import { IEnumerableIntegrations as IEI } from "../../../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
-
-import { IAdministeredAgent } from "../../../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
 
 import { Ethereum } from "../../../lib/spark-address-registry/src/Ethereum.sol";
 
 import { PostDeployTestBase } from "../../PostDeployTestBase.t.sol";
-
-interface IERC4626Like {
-
-    function convertToShares(uint256 assets) external view returns (uint256 shares);
-
-}
 
 abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
 
@@ -42,6 +30,8 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
         super.setUp();
 
         vm.createSelectFork(getChain("mainnet").rpcUrl, _getBlock());
+
+        _setUpDeployment();
     }
 
     function _getBlock() internal virtual pure returns (uint256) {
@@ -49,173 +39,81 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
     }
 
     /**********************************************************************************************/
+    /*** State tests                                                                            ***/
+    /**********************************************************************************************/
+
+    function test_administeredAgentState() external view {
+        _assertAdministeredAgentState();
+    }
+
+    function test_accessControlsState() external view {
+        _assertAccessControlsState();
+    }
+
+    function test_almProxyState() external view {
+        _assertALMProxyState();
+    }
+
+    function test_rateLimitsState() external view {
+        _assertRateLimitsInitializationState();
+    }
+
+    function test_controllerState() external view {
+        _assertControllerInitializationState();
+    }
+
+    function test_rateLimitsAndControllerOnboardingState() external view {
+        // 0. Controller Integrations
+        IEI.Integration[] memory integrations = controller.integrations();
+
+        assertEq(integrations.length, 2);
+
+        assertEq(integrations[0].id, CCTP_FACET_ID);
+        assertEq(integrations[1].id, ERC4626_FACET_ID);
+
+        for (uint256 i = 0; i < integrations.length; i++) {
+            _assertIntegration(integrations[i].id);
+        }
+
+        // 1. CCTP facet onboarding
+
+        // 1a. Controller state
+        (
+            bytes32 mintRecipient,
+            uint32  minFeeCapRate,
+            uint32  maxFeeCapRate
+        ) = controller.cctp_getDomainParameters(XLAYER_CCTP_DOMAIN);
+
+        assertEq(mintRecipient, bytes32(uint256(uint160(XLAYER_CCTP_MINT_RECIPIENT))));
+        assertEq(minFeeCapRate, CCTP_MIN_FEE_CAP_RATE);
+        assertEq(maxFeeCapRate, CCTP_MAX_FEE_CAP_RATE);
+
+        // 1b. Rate limits state
+
+        _assertRateLimitData(controller.cctp_toCCTPRateLimitKey(),                        CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
+        _assertRateLimitData(controller.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN), CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
+
+        // 2. ERC4626 facet onboarding
+
+        // 2a. Controller state
+        assertEq(controller.erc4626_getMaxExchangeRate(Ethereum.SUSDC), 1e25);
+
+        // 2b. Rate limits state
+
+        _assertRateLimitData(controller.erc4626_getDepositRateLimitKey(Ethereum.SUSDC, Ethereum.USDC), ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
+        _assertRateLimitData(controller.erc4626_getWithdrawRateLimitKey(Ethereum.SUSDC),               ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
+    }
+
+}
+
+abstract contract MainnetPostDeployEventTestsBase is MainnetPostDeployTestsBase {
+
+    /**********************************************************************************************/
     /*** Event assertions helpers                                                               ***/
     /**********************************************************************************************/
 
-    function _assertAccessControlsEvents() internal {
-        VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(accessControls), "");
-
-        assertEq(logs.length, 6);
-
-        // Grant assembler DEFAULT_ADMIN_ROLE
-        _assertRoleGrantedEvent({
-            log     : logs[0],
-            role    : DEFAULT_ADMIN_ROLE,
-            account : address(assembler),
-            sender  : address(pauFactory)
-        });
-
-        // Grant deployer DEFAULT_ADMIN_ROLE
-        _assertRoleGrantedEvent({
-            log     : logs[1],
-            role    : DEFAULT_ADMIN_ROLE,
-            account : deployer,
-            sender  : address(assembler)
-        });
-
-        // Grant administeredAgent ALLOCATOR_ROLE
-        _assertRoleGrantedEvent({
-            log     : logs[2],
-            role    : ALLOCATOR_ROLE,
-            account : address(administeredAgent),
-            sender  : address(assembler)
-        });
-
-        // Revoke assembler DEFAULT_ADMIN_ROLE
-        _assertRoleRevokedEvent({
-            log     : logs[3],
-            role    : DEFAULT_ADMIN_ROLE,
-            account : address(assembler),
-            sender  : address(assembler)
-        });
-
-        // Grant admin DEFAULT_ADMIN_ROLE
-        _assertRoleGrantedEvent({
-            log     : logs[4],
-            role    : DEFAULT_ADMIN_ROLE,
-            account : admin,
-            sender  : deployer
-        });
-
-        // Revoke deployer DEFAULT_ADMIN_ROLE
-        _assertRoleRevokedEvent({
-            log     : logs[5],
-            role    : DEFAULT_ADMIN_ROLE,
-            account : deployer,
-            sender  : deployer
-        });
-    }
-
-    function _assertALMProxyEvents() internal {
-        VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(almProxy), "");
-
-        assertEq(logs.length, 6);
-
-        // Grant assembler DEFAULT_ADMIN_ROLE
-        _assertRoleGrantedEvent({
-            log     : logs[0],
-            role    : DEFAULT_ADMIN_ROLE,
-            account : address(assembler),
-            sender  : address(pauFactory)
-        });
-
-        // Grant deployer DEFAULT_ADMIN_ROLE
-        _assertRoleGrantedEvent({
-            log     : logs[1],
-            role    : DEFAULT_ADMIN_ROLE,
-            account : deployer,
-            sender  : address(assembler)
-        });
-
-        // Grant controller CONTROLLER_ROLE
-        _assertRoleGrantedEvent({
-            log     : logs[2],
-            role    : CONTROLLER_ROLE,
-            account : address(controller),
-            sender  : address(assembler)
-        });
-
-        // Revoke assembler DEFAULT_ADMIN_ROLE
-        _assertRoleRevokedEvent({
-            log     : logs[3],
-            role    : DEFAULT_ADMIN_ROLE,
-            account : address(assembler),
-            sender  : address(assembler)
-        });
-
-        // Grant admin DEFAULT_ADMIN_ROLE
-        _assertRoleGrantedEvent({
-            log     : logs[4],
-            role    : DEFAULT_ADMIN_ROLE,
-            account : admin,
-            sender  : deployer
-        });
-
-        // Revoke deployer DEFAULT_ADMIN_ROLE
-        _assertRoleRevokedEvent({
-            log     : logs[5],
-            role    : DEFAULT_ADMIN_ROLE,
-            account : deployer,
-            sender  : deployer
-        });
-    }
-
-    function _assertAdministeredAgentEvents() internal {
-        VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(administeredAgent), "");
-
-        assertEq(logs.length, 7);
-
-        // Add assembler as admin
-        _assertAdminAddedEvent({
-            log     : logs[0],
-            account : address(assembler),
-            caller  : address(agentFactory)
-        });
-
-        // Add deployer as admin
-        _assertAdminAddedEvent({
-            log     : logs[1],
-            account : deployer,
-            caller  : address(assembler)
-        });
-
-        // Add relayer as actor
-        _assertActorAddedEvent({
-            log     : logs[2],
-            account : relayer,
-            caller  : address(assembler)
-        });
-
-        // Add freezer as revoker
-        _assertRevokerAddedEvent({
-            log     : logs[3],
-            account : freezer,
-            caller  : address(assembler)
-        });
-
-        // Remove assembler as admin
-        _assertAdminRemovedEvent({
-            log     : logs[4],
-            account : address(assembler),
-            caller  : address(assembler)
-        });
-
-        // Add admin as admin
-        _assertAdminAddedEvent({
-            log     : logs[5],
-            account : admin,
-            caller  : deployer
-        });
-
-        // Remove deployer as admin
-        _assertAdminRemovedEvent({
-            log     : logs[6],
-            account : deployer,
-            caller  : deployer
-        });
-    }
     function _assertRateLimitsEvents() internal {
-        VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(rateLimits), "");
+        RawLog[] memory logs = _logsFor(address(rateLimits));
 
         assertEq(logs.length, 10); // 6 role grant/revoke events + 4 rate limit set events.
 
@@ -301,7 +199,7 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
     }
 
     function _assertControllerEvents() internal {
-        VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(controller), "");
+        RawLog[] memory logs = _logsFor(address(controller));
 
         assertEq(logs.length, 5);
 
@@ -340,85 +238,36 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
     }
 
     /**********************************************************************************************/
-    /*** External tests                                                                         ***/
+    /*** Event tests                                                                            ***/
     /**********************************************************************************************/
 
-    function test_administeredAgentStateAndEvents() external {
-        _assertAdministeredAgentState();
+    function test_administeredAgentEvents() external {
         _assertAdministeredAgentEvents();
     }
 
-    function test_accessControlsStateAndEvents() external {
-        _assertAccessControlsState();
+    function test_accessControlsEvents() external {
         _assertAccessControlsEvents();
     }
 
-    function test_almProxyStateAndEvents() external {
-        _assertALMProxyState();
+    function test_almProxyEvents() external {
         _assertALMProxyEvents();
     }
 
-    function test_rateLimitsStateAndEvents() external {
-        _assertRateLimitsInitializationState();
+    function test_rateLimitsEvents() external {
         _assertRateLimitsEvents();
     }
 
-    function test_controllerStateAndEvents() external {
-        _assertControllerInitializationState();
+    function test_controllerEvents() external {
         _assertControllerEvents();
-    }
-
-    function test_rateLimitsAndControllerOnboardingState() external view {
-        // 0. Controller Integrations
-        IEI.Integration[] memory integrations = controller.integrations();
-
-        assertEq(integrations.length, 2);
-
-        assertEq(integrations[0].id, CCTP_FACET_ID);
-        assertEq(integrations[1].id, ERC4626_FACET_ID);
-
-        for (uint256 i = 0; i < integrations.length; i++) {
-            _assertIntegration(integrations[i].id);
-        }
-
-        // 1. CCTP facet onboarding
-
-        // 1a. Controller state
-        (
-            bytes32 mintRecipient,
-            uint32  minFeeCapRate,
-            uint32  maxFeeCapRate
-        ) = controller.cctp_getDomainParameters(XLAYER_CCTP_DOMAIN);
-
-        assertEq(mintRecipient, bytes32(uint256(uint160(XLAYER_CCTP_MINT_RECIPIENT))));
-        assertEq(minFeeCapRate, CCTP_MIN_FEE_CAP_RATE);
-        assertEq(maxFeeCapRate, CCTP_MAX_FEE_CAP_RATE);
-
-        // 1b. Rate limits state
-
-        _assertRateLimitData(controller.cctp_toCCTPRateLimitKey(),                        CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
-        _assertRateLimitData(controller.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN), CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
-
-        // 2. ERC4626 facet onboarding
-
-        // 2a. Controller state
-        assertEq(controller.erc4626_getMaxExchangeRate(Ethereum.SUSDC), 1e25);
-
-        // 2b. Rate limits state
-
-        _assertRateLimitData(controller.erc4626_getDepositRateLimitKey(Ethereum.SUSDC, Ethereum.USDC), ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
-        _assertRateLimitData(controller.erc4626_getWithdrawRateLimitKey(Ethereum.SUSDC),               ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
     }
 
 }
 
-contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
+contract MainnetPostDeployTestsStaging is MainnetPostDeployEventTestsBase {
 
     using stdJson for string;
 
-    function setUp() public override {
-        super.setUp();
-
+    function _setUpDeployment() internal override {
         // CCTP facet onboarding.
         XLAYER_CCTP_MINT_RECIPIENT = 0x9e8741C793D695ED6660f7B2860FE011110D5869;
 
@@ -433,21 +282,25 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
 
         string memory json = vm.readFile("deployments/mainnet-staging.json");
 
-        _setUpAddresses({
-            _agentFactory      : json.readAddress(".agentFactory"),
-            _assembler         : json.readAddress(".defaultPAUAssembler"),
-            _beacon            : json.readAddress(".beacon"),
-            _pauFactory        : json.readAddress(".pauFactory"),
-            _accessControls    : json.readAddress(".accessControls"),
-            _administeredAgent : json.readAddress(".administeredAgent"),
-            _almProxy          : json.readAddress(".proxy"),
-            _controller        : json.readAddress(".controller"),
-            _rateLimits        : json.readAddress(".rateLimits"),
-            _admin             : json.readAddress(".admin"),
-            _deployer          : json.readAddress(".deployer"),
-            _relayer           : json.readAddress(".relayer"),
-            _freezer           : json.readAddress(".freezer")
-        });
+        _setUpAddresses(Addresses({
+            agentFactory      : json.readAddress(".agentFactory"),
+            assembler         : json.readAddress(".defaultPAUAssembler"),
+            beacon            : json.readAddress(".beacon"),
+            pauFactory        : json.readAddress(".pauFactory"),
+            accessControls    : json.readAddress(".accessControls"),
+            administeredAgent : json.readAddress(".administeredAgent"),
+            almProxy          : json.readAddress(".proxy"),
+            controller        : json.readAddress(".controller"),
+            rateLimits        : json.readAddress(".rateLimits"),
+            admin             : json.readAddress(".admin"),
+            deployer          : json.readAddress(".deployer"),
+            relayer           : json.readAddress(".relayer"),
+            freezer           : json.readAddress(".freezer")
+        }));
+    }
+
+    function _logsFor(address emitter) internal override returns (RawLog[] memory logs) {
+        return _getEvents(block.chainid, emitter, "");
     }
 
     function _getBlock() internal override pure returns (uint256) {
