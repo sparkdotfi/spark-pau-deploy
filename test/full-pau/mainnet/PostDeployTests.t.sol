@@ -219,85 +219,7 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
             caller  : deployer
         });
     }
-
-    function test_administeredAgentState() external {
-        _assertAdministeredAgentState();
-        _assertAdministeredAgentEvents();
-    }
-
-    function test_accessControlsStateAndEvents() external {
-        _assertAccessControlsState();
-        _assertAccessControlsEvents();
-    }
-
-    function test_almProxyStateAndEvents() external {
-        _assertALMProxyState();
-        _assertALMProxyEvents();
-    }
-
-    function test_rateLimitsState() external view {
-        _assertRateLimitsState();
-    }
-
-    function test_controllerState() external view {
-        _assertControllerState();
-    }
-
-    function test_rateLimitsAndControllerOnboardingState() external view {
-        // 0. Controller Integrations
-        IEI.Integration[] memory integrations = controller.integrations();
-
-        assertEq(integrations.length, 3);
-
-        assertEq(integrations[0].id, CCTP_FACET_ID);
-        assertEq(integrations[1].id, PSM_FACET_ID);
-        assertEq(integrations[2].id, ERC4626_FACET_ID);
-
-        for (uint256 i = 0; i < integrations.length; i++) {
-            _assertIntegration(integrations[i].id);
-        }
-
-        // 1. CCTP facet onboarding
-
-        // 1a. Controller state
-        (
-            bytes32 mintRecipient,
-            uint32  minFeeCapRate,
-            uint32  maxFeeCapRate
-        ) = controller.cctp_getDomainParameters(XLAYER_CCTP_DOMAIN);
-
-        assertEq(mintRecipient, bytes32(uint256(uint160(XLAYER_CCTP_MINT_RECIPIENT))));
-        assertEq(minFeeCapRate, CCTP_MIN_FEE_CAP_RATE);
-        assertEq(maxFeeCapRate, CCTP_MAX_FEE_CAP_RATE);
-
-        // 1b. Rate limits state
-
-        _assertRateLimitData(controller.cctp_toCCTPRateLimitKey(),                        CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
-        _assertRateLimitData(controller.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN), CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
-
-        // 2. PSM facet onboarding (No controller state changes to assert)
-
-        // 2b. Rate limits state
-
-        _assertRateLimitData(controller.psm_usdcToUSDSSwapRateLimitKey(), PSM_USDC_MAX_AMOUNT, PSM_USDC_SLOPE);
-        _assertRateLimitData(controller.psm_usdsToUSDCSwapRateLimitKey(), PSM_USDC_MAX_AMOUNT, PSM_USDC_SLOPE);
-
-        // 3. ERC4626 facet onboarding
-
-        // 3a. Controller state
-        assertApproxEqRel(
-            controller.erc4626_getMaxExchangeRate(Ethereum.SUSDC),
-            _expectedMaxExchangeRate(),
-            ERC4626_MAX_EXCHANGE_RATE_TOLERANCE
-        );
-
-        // 3b. Rate limits state
-
-        _assertRateLimitData(controller.erc4626_getDepositRateLimitKey(Ethereum.SUSDC, Ethereum.USDC), ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
-        _assertRateLimitData(controller.erc4626_getWithdrawRateLimitKey(Ethereum.SUSDC), ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
-    }
-
-    function test_rateLimitsEvents() external {
+    function _assertRateLimitsEvents() internal {
         VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(rateLimits), "");
 
         assertEq(logs.length, 12); // 6 role grant/revoke events + 6 rate limit set events.
@@ -399,7 +321,7 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
         });
     }
 
-    function test_controllerEvents() external {
+    function _assertControllerEvents() internal {
         VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(controller), "");
 
         assertEq(logs.length, 6);
@@ -443,6 +365,89 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
             maxExchangeRate : _expectedMaxExchangeRate(),
             maxPercentDelta : ERC4626_MAX_EXCHANGE_RATE_TOLERANCE
         });
+    }
+
+    /**********************************************************************************************/
+    /*** External tests                                                                         ***/
+    /**********************************************************************************************/
+
+    function test_administeredAgentStateAndEvents() external {
+        _assertAdministeredAgentState();
+        _assertAdministeredAgentEvents();
+    }
+
+    function test_accessControlsStateAndEvents() external {
+        _assertAccessControlsState();
+        _assertAccessControlsEvents();
+    }
+
+    function test_almProxyStateAndEvents() external {
+        _assertALMProxyState();
+        _assertALMProxyEvents();
+    }
+
+    function test_rateLimitsStateAndEvents() external {
+        _assertRateLimitsState();
+        _assertRateLimitsEvents();
+    }
+
+    function test_controllerStateAndEvents() external {
+        _assertControllerState();
+        _assertControllerEvents();
+    }
+
+    function test_rateLimitsAndControllerOnboardingState() external view {
+        // 0. Controller Integrations
+        IEI.Integration[] memory integrations = controller.integrations();
+
+        assertEq(integrations.length, 3);
+
+        assertEq(integrations[0].id, CCTP_FACET_ID);
+        assertEq(integrations[1].id, PSM_FACET_ID);
+        assertEq(integrations[2].id, ERC4626_FACET_ID);
+
+        for (uint256 i = 0; i < integrations.length; i++) {
+            _assertIntegration(integrations[i].id);
+        }
+
+        // 1. CCTP facet onboarding
+
+        // 1a. Controller state
+        (
+            bytes32 mintRecipient,
+            uint32  minFeeCapRate,
+            uint32  maxFeeCapRate
+        ) = controller.cctp_getDomainParameters(XLAYER_CCTP_DOMAIN);
+
+        assertEq(mintRecipient, bytes32(uint256(uint160(XLAYER_CCTP_MINT_RECIPIENT))));
+        assertEq(minFeeCapRate, CCTP_MIN_FEE_CAP_RATE);
+        assertEq(maxFeeCapRate, CCTP_MAX_FEE_CAP_RATE);
+
+        // 1b. Rate limits state
+
+        _assertRateLimitData(controller.cctp_toCCTPRateLimitKey(),                        CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
+        _assertRateLimitData(controller.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN), CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
+
+        // 2. PSM facet onboarding (No controller state changes to assert)
+
+        // 2b. Rate limits state
+
+        _assertRateLimitData(controller.psm_usdcToUSDSSwapRateLimitKey(), PSM_USDC_MAX_AMOUNT, PSM_USDC_SLOPE);
+        _assertRateLimitData(controller.psm_usdsToUSDCSwapRateLimitKey(), PSM_USDC_MAX_AMOUNT, PSM_USDC_SLOPE);
+
+        // 3. ERC4626 facet onboarding
+
+        // 3a. Controller state
+        assertApproxEqRel(
+            controller.erc4626_getMaxExchangeRate(Ethereum.SUSDC),
+            _expectedMaxExchangeRate(),
+            ERC4626_MAX_EXCHANGE_RATE_TOLERANCE
+        );
+
+        // 3b. Rate limits state
+
+        _assertRateLimitData(controller.erc4626_getDepositRateLimitKey(Ethereum.SUSDC, Ethereum.USDC), ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
+        _assertRateLimitData(controller.erc4626_getWithdrawRateLimitKey(Ethereum.SUSDC),               ERC4626_USDC_MAX_AMOUNT, ERC4626_USDC_SLOPE);
     }
 
     /**********************************************************************************************/
