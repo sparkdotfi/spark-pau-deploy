@@ -303,7 +303,7 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
     function _assertControllerEvents() internal {
         VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(controller), "");
 
-        assertEq(logs.length, 6);
+        assertEq(logs.length, 5);
 
         // Assert controller Initialized event
         _assertInitializedEvent({
@@ -420,7 +420,7 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
         super.setUp();
 
         // CCTP facet onboarding.
-        XLAYER_CCTP_MINT_RECIPIENT = 0x4aeB3eA3cE2cF9ABaF8ED558C72A215743D7eb4F;
+        XLAYER_CCTP_MINT_RECIPIENT = 0x9e8741C793D695ED6660f7B2860FE011110D5869;
 
         CCTP_MIN_FEE_CAP_RATE = 0;
         CCTP_MAX_FEE_CAP_RATE = 100;
@@ -451,7 +451,7 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
     }
 
     function _getBlock() internal override pure returns (uint256) {
-        return 25931121;
+        return 25941422;
     }
 
 }
