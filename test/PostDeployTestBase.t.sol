@@ -51,7 +51,7 @@ abstract contract PostDeployTestBase is Test {
     address internal freezer;
 
     function setUp() public virtual {
-        _setUpXLayerFork();
+        _setUpXLayerAndRobinhoodForks();
     }
 
     function _setUpAddresses(
@@ -86,11 +86,17 @@ abstract contract PostDeployTestBase is Test {
         freezer  = _freezer;
     }
 
-    function _setUpXLayerFork() internal {
+    function _setUpXLayerAndRobinhoodForks() internal {
         setChain("xlayer", ChainData({
             name    : "XLayer",
-            rpcUrl  : "https://rpc.xlayer.tech",
+            rpcUrl  : vm.envOr("XLAYER_RPC_URL", string("https://rpc.xlayer.tech")),
             chainId : 196
+        }));
+
+        setChain("robinhood_chain", ChainData({
+            name    : "Robinhood Chain",
+            rpcUrl  : vm.envOr("RH_RPC_URL", string("")),
+            chainId : 4663
         }));
     }
 
