@@ -57,6 +57,8 @@ interface ISparkVaultLike {
 
     function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
 
+    function SETTER_ROLE() external view returns (bytes32);
+
     function TAKER_ROLE() external view returns (bytes32);
 
     function grantRole(bytes32 role, address account) external;
@@ -65,7 +67,7 @@ interface ISparkVaultLike {
 
     function setDepositCap(uint256 cap) external;
 
-    function convertToShares(uint256 assets) external view returns (uint256 shares);
+    function setVsrBounds(uint256 minVsr, uint256 maxVsr) external;
 
 }
 
@@ -78,6 +80,8 @@ interface IRateLimitsLike {
     function revokeRole(bytes32 role, address account) external;
 
     function setRateLimitData(bytes32 key, uint256 maxAmount, uint256 slope) external;
+
+    function setUnlimitedRateLimitData(bytes32 key) external;
 
 }
 
@@ -187,7 +191,7 @@ abstract contract ConfigureSparkPAUFullBase is Script {
 
 }
 
-contract ConfigureSparkPAUFullMainnet is ConfigureSparkPAUFullBase {
+contract ConfigureSparkPAUFullMainnetStaging is ConfigureSparkPAUFullBase {
 
     using stdJson for string;
 
@@ -243,7 +247,62 @@ contract ConfigureSparkPAUFullMainnet is ConfigureSparkPAUFullBase {
 
 }
 
-contract ConfigureSparkPAUFullXLayer is ConfigureSparkPAUFullBase {
+contract ConfigureSparkPAUFullMainnetProduction is ConfigureSparkPAUFullBase {
+
+    using stdJson for string;
+
+    address internal xlayerAlmProxy;
+    uint32  internal xlayerDomainId;
+
+    address internal usdc;
+    address internal susdc;
+
+    function _onboardFacets() internal override {
+        xlayerAlmProxy = config.readAddress(".xlayerAlmProxy");
+        xlayerDomainId = uint32(config.readUint(".xlayerDomainId"));
+
+        usdc  = config.readAddress(".usdc");
+        susdc = config.readAddress(".susdc");
+
+        _onboardCCTPFacet();
+        _onboardERC4626Facet();
+    }
+
+    function _onboardCCTPFacet() internal {
+        // Set domain parameters
+        controller.cctp_setDomainParameters(
+            xlayerDomainId,
+            bytes32(uint256(uint160(xlayerAlmProxy))),
+            0,
+            0 // no fee cap rate
+        );
+
+        // Set rate limits
+        rateLimits.setUnlimitedRateLimitData(controller.cctp_toCCTPRateLimitKey());
+        rateLimits.setRateLimitData(
+            controller.cctp_getToDomainRateLimitKey(xlayerDomainId),
+            10_000_000e6,
+            uint256(250_000_000e6) / 1 days
+        );
+    }
+
+    function _onboardERC4626Facet() internal {
+        bytes32 depositKey  = controller.erc4626_getDepositRateLimitKey(susdc, usdc);
+        bytes32 withdrawKey = controller.erc4626_getWithdrawRateLimitKey(susdc);
+
+        rateLimits.setUnlimitedRateLimitData(depositKey);
+        rateLimits.setUnlimitedRateLimitData(withdrawKey);
+
+        controller.erc4626_setMaxExchangeRate(
+            susdc,
+            1 * 10 ** IERC20Like(susdc).decimals(), // 1e18
+            10 * 10 ** IERC20Like(usdc).decimals()  // 10e6
+        );
+    }
+
+}
+
+contract ConfigureSparkPAUFullXLayerStaging is ConfigureSparkPAUFullBase {
 
     using stdJson for string;
 
@@ -302,6 +361,66 @@ contract ConfigureSparkPAUFullXLayer is ConfigureSparkPAUFullBase {
             10e6,
             uint256(100e6) / 1 hours
         );
+    }
+
+}
+
+contract ConfigureSparkPAUFullXLayerProduction is ConfigureSparkPAUFullBase {
+
+    using stdJson for string;
+
+    address internal ethereumAlmProxy;
+    uint32  internal ethereumDomainId;
+
+    address internal usdc;
+    address internal spusdc;
+
+    function _onboardFacets() internal override {
+        ethereumAlmProxy = config.readAddress(".ethereumAlmProxy");
+        ethereumDomainId = uint32(config.readUint(".ethereumDomainId"));
+
+        usdc   = config.readAddress(".usdc");
+        spusdc = config.readAddress(".spusdc");
+
+        _onboardCCTPFacet();
+        _onboardTransferAssetFacet();
+        _onboardSparkVaultFacet();
+    }
+
+    function _onboardCCTPFacet() internal {
+        // Set domain parameters
+        controller.cctp_setDomainParameters(
+            ethereumDomainId,
+            bytes32(uint256(uint160(ethereumAlmProxy))),
+            0,
+            0 // no fee cap rate
+        );
+
+        // Set rate limits
+        rateLimits.setUnlimitedRateLimitData(controller.cctp_toCCTPRateLimitKey());
+
+        rateLimits.setRateLimitData(
+            controller.cctp_getToDomainRateLimitKey(ethereumDomainId),
+            10_000_000e6,
+            uint256(250_000_000e6) / 1 days
+        );
+    }
+
+    function _onboardTransferAssetFacet() internal {
+        rateLimits.setUnlimitedRateLimitData(controller.transferAsset_getTransferRateLimitKey(usdc, spusdc));
+    }
+
+    function _onboardSparkVaultFacet() internal {
+        ISparkVaultLike spUsdc = ISparkVaultLike(spusdc);
+
+        // bc -l <<< 'scale=27; e( l(1.06)/(60 * 60 * 24 * 365) )'
+        spUsdc.setVsrBounds(1e27, 1000000001847694957439350563); // 6% APY
+        spUsdc.setDepositCap(500_000_000e6);
+
+        spUsdc.grantRole(spUsdc.TAKER_ROLE(),  address(almProxy));
+        spUsdc.grantRole(spUsdc.SETTER_ROLE(), address(administeredAgent));
+
+        rateLimits.setUnlimitedRateLimitData(controller.sparkVault_getTakeRateLimitKey(spusdc));
     }
 
 }

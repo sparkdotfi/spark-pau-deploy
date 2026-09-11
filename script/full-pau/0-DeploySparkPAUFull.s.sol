@@ -47,6 +47,7 @@ abstract contract DeploySparkPAUFullBase is Script {
     address internal admin;
     address internal relayer;
     address internal freezer;
+    address internal grantor;
 
     function run() public virtual {
         _setXLayerAndRHChainForks();
@@ -66,6 +67,7 @@ abstract contract DeploySparkPAUFullBase is Script {
         admin   = config.readAddress(".admin");
         relayer = config.readAddress(".relayer");
         freezer = config.readAddress(".freezer");
+        grantor = config.readAddress(".grantor");
 
         defaultPAUAssembler = IDefaultPAUAssembler(config.readAddress(".defaultPAUAssembler"));
 
@@ -123,12 +125,16 @@ abstract contract DeploySparkPAUFullBase is Script {
     function _getAgentConfigs() internal returns (IDefaultPAUAssembler.AdministeredAgentConfig[] memory agentConfigs) {
         address[] memory agentAdmins   = new address[](1);
         address[] memory agentActors   = new address[](1);
-        address[] memory agentGrantors = new address[](0);
+        address[] memory agentGrantors = new address[](address(grantor) == address(0) ? 0 : 1);
         address[] memory agentRevokers = new address[](1);
 
         agentAdmins[0]   = admin;
         agentActors[0]   = relayer;
         agentRevokers[0] = freezer;
+
+        if (agentGrantors.length > 0) {
+            agentGrantors[0] = grantor;
+        }
 
         agentConfigs = new IDefaultPAUAssembler.AdministeredAgentConfig[](1); // Only one allocator agent is deployed.
 
@@ -164,7 +170,6 @@ contract DeploySparkPAUFullMainnet is DeploySparkPAUFullBase {
 
     function _getIntegrationIds() internal override returns (bytes32[] memory integrationIds) {
         integrationIds = new bytes32[](2);
-
 
         integrationIds[0] = "CCTP_FACET";
         integrationIds[1] = "ERC4626_FACET";

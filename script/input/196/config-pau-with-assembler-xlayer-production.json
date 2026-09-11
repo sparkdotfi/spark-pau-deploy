@@ -1,0 +1,19 @@
+{
+  "_info": "Spark XLayer Production PAU configuration.",
+
+  "chainId": 196,
+
+  "admin": "0xCF5af6F53ceC74B791cb4182aC778ca9CD323510",
+  "beacon": "0x5612697F3F8c393A860ac0C9cf5b315c248cB0a0",
+  "administeredAgent": "0x79b4055Eda153f739B5EA63C9B647c1a095059f5",
+  "controller": "0x8d19d306cA6075f74B26B150383379aedB0250f6",
+  "deployer": "0x23d43f3189Ab9CEBfFcC0352C0490387e3105FB3",
+
+  "_cctpFacet": "Values to onboard the CCTP facet.",
+  "ethereumAlmProxy": "0x8D719A830b00e5571db00D173505CD56c0Ec224a",
+  "ethereumDomainId": 0,
+
+  "_transferAssetFacet": "Values to onboard the Transfer Asset facet.",
+  "usdc": "0xB6CEceAB302E2E4948951eE7843FC24E92933061",
+  "spusdc": "0xf90E63079D97a0A1f479b2b168457F420CAFf6ba"
+}

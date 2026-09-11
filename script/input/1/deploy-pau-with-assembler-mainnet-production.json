@@ -1,0 +1,10 @@
+{
+  "_info": "Spark Mainnet Production PAU deployment with default PAUAssembler.",
+
+  "chainId": 1,
+  "defaultPAUAssembler": "0xb2468FCc87E3BE45Bfa521e567731375887BF8e2",
+  "relayer": "0x8a25A24EDE9482C4Fc0738F99611BE58F1c839AB",
+  "freezer": "0x90D8c80C028B4C09C0d8dcAab9bbB057F0513431",
+  "grantor": "0x4B61A0E48dd1e300f64090C60F414c1aC6CbC514",
+  "admin": "0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f"
+}
