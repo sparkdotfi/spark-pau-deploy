@@ -33,8 +33,12 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
     uint32  internal CCTP_MIN_FEE_CAP_RATE;
     uint32  internal CCTP_MAX_FEE_CAP_RATE;
 
-    uint256 internal CCTP_USDC_MAX_AMOUNT;
-    uint256 internal CCTP_USDC_SLOPE;
+    uint256 internal CCTP_TO_CCTP_USDC_MAX_AMOUNT;
+    uint256 internal CCTP_TO_CCTP_USDC_SLOPE;
+
+    uint256 internal CCTP_TO_DOMAIN_USDC_MAX_AMOUNT;
+    uint256 internal CCTP_TO_DOMAIN_USDC_SLOPE;
+
     uint256 internal ERC4626_USDC_MAX_AMOUNT;
     uint256 internal ERC4626_USDC_SLOPE;
 
@@ -160,10 +164,10 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
         });
     }
 
-    function _assertAdministeredAgentEvents() internal {
+    function _assertAdministeredAgentEvents() internal virtual {
         VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(administeredAgent), "");
 
-        assertEq(logs.length, 7);
+        assertEq(logs.length, 8);
 
         // Add assembler as admin
         _assertAdminAddedEvent({
@@ -186,34 +190,42 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
             caller  : address(assembler)
         });
 
+        // Add grantor
+        _assertGrantorAddedEvent({
+            log     : logs[3],
+            account : grantor,
+            caller  : address(assembler)
+        });
+
         // Add freezer as revoker
         _assertRevokerAddedEvent({
-            log     : logs[3],
+            log     : logs[4],
             account : freezer,
             caller  : address(assembler)
         });
 
         // Remove assembler as admin
         _assertAdminRemovedEvent({
-            log     : logs[4],
+            log     : logs[5],
             account : address(assembler),
             caller  : address(assembler)
         });
 
         // Add admin as admin
         _assertAdminAddedEvent({
-            log     : logs[5],
+            log     : logs[6],
             account : admin,
             caller  : deployer
         });
 
         // Remove deployer as admin
         _assertAdminRemovedEvent({
-            log     : logs[6],
+            log     : logs[7],
             account : deployer,
             caller  : deployer
         });
     }
+
     function _assertRateLimitsEvents() internal {
         VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(rateLimits), "");
 
@@ -255,16 +267,16 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
         _assertRateLimitDataSetEvent({
             log       : logs[4],
             key       : controller.cctp_toCCTPRateLimitKey(),
-            maxAmount : CCTP_USDC_MAX_AMOUNT,
-            slope     : CCTP_USDC_SLOPE
+            maxAmount : CCTP_TO_CCTP_USDC_MAX_AMOUNT,
+            slope     : CCTP_TO_CCTP_USDC_SLOPE
         });
 
         // Assert cctp_getToDomainRateLimitKey rate limit
         _assertRateLimitDataSetEvent({
             log       : logs[5],
             key       : controller.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN),
-            maxAmount : CCTP_USDC_MAX_AMOUNT,
-            slope     : CCTP_USDC_SLOPE
+            maxAmount : CCTP_TO_DOMAIN_USDC_MAX_AMOUNT,
+            slope     : CCTP_TO_DOMAIN_USDC_SLOPE
         });
 
         // Assert erc4626_getDepositRateLimitKey(SUSDC, USDC) rate limit
@@ -396,8 +408,8 @@ abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
 
         // 1b. Rate limits state
 
-        _assertRateLimitData(controller.cctp_toCCTPRateLimitKey(),                        CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
-        _assertRateLimitData(controller.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN), CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
+        _assertRateLimitData(controller.cctp_toCCTPRateLimitKey(),                        CCTP_TO_CCTP_USDC_MAX_AMOUNT,   CCTP_TO_CCTP_USDC_SLOPE);
+        _assertRateLimitData(controller.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN), CCTP_TO_DOMAIN_USDC_MAX_AMOUNT, CCTP_TO_DOMAIN_USDC_SLOPE);
 
         // 2. ERC4626 facet onboarding
 
@@ -424,34 +436,127 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
 
         CCTP_MIN_FEE_CAP_RATE = 0;
         CCTP_MAX_FEE_CAP_RATE = 100;
-        CCTP_USDC_MAX_AMOUNT  = 10e6;
-        CCTP_USDC_SLOPE       = uint256(100e6) / 1 hours;
+
+        CCTP_TO_CCTP_USDC_MAX_AMOUNT = 10e6;
+        CCTP_TO_CCTP_USDC_SLOPE      = uint256(100e6) / 1 hours;
+
+        CCTP_TO_DOMAIN_USDC_MAX_AMOUNT = 10e6;
+        CCTP_TO_DOMAIN_USDC_SLOPE      = uint256(100e6) / 1 hours;
 
         // ERC4626 facet onboarding.
         ERC4626_USDC_MAX_AMOUNT = 10e6;
         ERC4626_USDC_SLOPE      = uint256(100e6) / 1 hours;
 
-        string memory json = vm.readFile("deployments/mainnet-staging.json");
-
-        _setUpAddresses({
-            _agentFactory      : json.readAddress(".agentFactory"),
-            _assembler         : json.readAddress(".defaultPAUAssembler"),
-            _beacon            : json.readAddress(".beacon"),
-            _pauFactory        : json.readAddress(".pauFactory"),
-            _accessControls    : json.readAddress(".accessControls"),
-            _administeredAgent : json.readAddress(".administeredAgent"),
-            _almProxy          : json.readAddress(".proxy"),
-            _controller        : json.readAddress(".controller"),
-            _rateLimits        : json.readAddress(".rateLimits"),
-            _admin             : json.readAddress(".admin"),
-            _deployer          : json.readAddress(".deployer"),
-            _relayer           : json.readAddress(".relayer"),
-            _freezer           : json.readAddress(".freezer")
-        });
+        _setUpAddresses(vm.readFile("deployments/mainnet-staging.json"));
     }
 
     function _getBlock() internal override pure returns (uint256) {
         return 25941422;
     }
 
+    // Override to assert grantor count is 0 in staging.
+    function _assertAdministeredAgentState() internal override view {
+        assertEq(administeredAgent.adminCount(),   1);
+        assertEq(administeredAgent.actorCount(),   1);
+        assertEq(administeredAgent.grantorCount(), 0);
+        assertEq(administeredAgent.revokerCount(), 1);
+
+        assertEq(administeredAgent.getAdmin(0),   admin);
+        assertEq(administeredAgent.getActor(0),   relayer);
+        assertEq(administeredAgent.getRevoker(0), freezer);
+
+        assertEq(administeredAgent.getIsAdmin(deployer),              false);
+        assertEq(administeredAgent.getIsAdmin(address(assembler)),    false);
+        assertEq(administeredAgent.getIsAdmin(address(agentFactory)), false);
+    }
+
+    // Override to remove grantor event in staging.
+    function _assertAdministeredAgentEvents() internal override {
+        VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(administeredAgent), "");
+
+        assertEq(logs.length, 7);
+
+        // Add assembler as admin
+        _assertAdminAddedEvent({
+            log     : logs[0],
+            account : address(assembler),
+            caller  : address(agentFactory)
+        });
+
+        // Add deployer as admin
+        _assertAdminAddedEvent({
+            log     : logs[1],
+            account : deployer,
+            caller  : address(assembler)
+        });
+
+        // Add relayer as actor
+        _assertActorAddedEvent({
+            log     : logs[2],
+            account : relayer,
+            caller  : address(assembler)
+        });
+
+        // Add freezer as revoker
+        _assertRevokerAddedEvent({
+            log     : logs[3],
+            account : freezer,
+            caller  : address(assembler)
+        });
+
+        // Remove assembler as admin
+        _assertAdminRemovedEvent({
+            log     : logs[4],
+            account : address(assembler),
+            caller  : address(assembler)
+        });
+
+        // Add admin as admin
+        _assertAdminAddedEvent({
+            log     : logs[5],
+            account : admin,
+            caller  : deployer
+        });
+
+        // Remove deployer as admin
+        _assertAdminRemovedEvent({
+            log     : logs[6],
+            account : deployer,
+            caller  : deployer
+        });
+    }
+
 }
+
+contract MainnetPostDeployTestsProduction is MainnetPostDeployTestsBase {
+
+    using stdJson for string;
+
+    function setUp() public override {
+        super.setUp();
+
+        // CCTP facet onboarding.
+        XLAYER_CCTP_MINT_RECIPIENT = 0xe6D5d041Fc5e7fDD0A53C13e78a1cc7e4ffCb667;
+
+        CCTP_MIN_FEE_CAP_RATE = 0;
+        CCTP_MAX_FEE_CAP_RATE = 0;
+
+        CCTP_TO_CCTP_USDC_MAX_AMOUNT = type(uint256).max;
+        CCTP_TO_CCTP_USDC_SLOPE      = 0;
+
+        CCTP_TO_DOMAIN_USDC_MAX_AMOUNT = 10_000_000e6;
+        CCTP_TO_DOMAIN_USDC_SLOPE      = uint256(250_000_000e6) / 1 days;
+
+        // ERC4626 facet onboarding.
+        ERC4626_USDC_MAX_AMOUNT = type(uint256).max;
+        ERC4626_USDC_SLOPE      = 0;
+
+        _setUpAddresses(vm.readFile("deployments/mainnet-production.json"));
+    }
+
+    function _getBlock() internal override pure returns (uint256) {
+        return 0;
+    }
+
+}
+

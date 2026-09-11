@@ -57,6 +57,8 @@ interface ISparkVaultLike {
 
     function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
 
+    function SETTER_ROLE() external view returns (bytes32);
+
     function TAKER_ROLE() external view returns (bytes32);
 
     function grantRole(bytes32 role, address account) external;
@@ -65,7 +67,7 @@ interface ISparkVaultLike {
 
     function setDepositCap(uint256 cap) external;
 
-    function convertToShares(uint256 assets) external view returns (uint256 shares);
+    function setVsrBounds(uint256 minVsr, uint256 maxVsr) external;
 
 }
 
@@ -78,6 +80,8 @@ interface IRateLimitsLike {
     function revokeRole(bytes32 role, address account) external;
 
     function setRateLimitData(bytes32 key, uint256 maxAmount, uint256 slope) external;
+
+    function setUnlimitedRateLimitData(bytes32 key) external;
 
 }
 
@@ -214,16 +218,15 @@ contract ConfigureSparkPAUFullMainnet is ConfigureSparkPAUFullBase {
             xlayerDomainId,
             bytes32(uint256(uint160(xlayerAlmProxy))),
             0,
-            100
+            0 // no fee cap rate
         );
 
         // Set rate limits
-        rateLimits.setRateLimitData(controller.cctp_toCCTPRateLimitKey(), 10e6, uint256(100e6) / 1 hours);
-
+        rateLimits.setUnlimitedRateLimitData(controller.cctp_toCCTPRateLimitKey());
         rateLimits.setRateLimitData(
             controller.cctp_getToDomainRateLimitKey(xlayerDomainId),
-            10e6,
-            uint256(100e6) / 1 hours
+            10_000_000e6,
+            uint256(250_000_000e6) / 1 days
         );
     }
 
@@ -231,13 +234,13 @@ contract ConfigureSparkPAUFullMainnet is ConfigureSparkPAUFullBase {
         bytes32 depositKey  = controller.erc4626_getDepositRateLimitKey(susdc, usdc);
         bytes32 withdrawKey = controller.erc4626_getWithdrawRateLimitKey(susdc);
 
-        rateLimits.setRateLimitData(depositKey,  10e6, uint256(100e6) / 1 hours);
-        rateLimits.setRateLimitData(withdrawKey, 10e6, uint256(100e6) / 1 hours);
+        rateLimits.setUnlimitedRateLimitData(depositKey);
+        rateLimits.setUnlimitedRateLimitData(withdrawKey);
 
         controller.erc4626_setMaxExchangeRate(
             susdc,
-            1 * 10 ** IERC20Like(susdc).decimals(),
-            10 * 10 ** IERC20Like(usdc).decimals()
+            1 * 10 ** IERC20Like(susdc).decimals(), // 1e18
+            10 * 10 ** IERC20Like(usdc).decimals()  // 10e6
         );
     }
 
@@ -271,37 +274,34 @@ contract ConfigureSparkPAUFullXLayer is ConfigureSparkPAUFullBase {
             ethereumDomainId,
             bytes32(uint256(uint160(ethereumAlmProxy))),
             0,
-            100
+            0 // no fee cap rate
         );
 
         // Set rate limits
-        rateLimits.setRateLimitData(controller.cctp_toCCTPRateLimitKey(), 10e6, uint256(100e6) / 1 hours);
+        rateLimits.setUnlimitedRateLimitData(controller.cctp_toCCTPRateLimitKey());
 
         rateLimits.setRateLimitData(
             controller.cctp_getToDomainRateLimitKey(ethereumDomainId),
-            10e6,
-            uint256(100e6) / 1 hours
+            10_000_000e6,
+            uint256(250_000_000e6) / 1 days
         );
     }
 
     function _onboardTransferAssetFacet() internal {
-        rateLimits.setRateLimitData(
-            controller.transferAsset_getTransferRateLimitKey(usdc, spusdc),
-            10e6,
-            uint256(100e6) / 1 hours
-        );
+        rateLimits.setUnlimitedRateLimitData(controller.transferAsset_getTransferRateLimitKey(usdc, spusdc));
     }
 
     function _onboardSparkVaultFacet() internal {
-        ISparkVaultLike(spusdc).setDepositCap(1_000_000e6);
+        ISparkVaultLike spUsdc = ISparkVaultLike(spusdc);
 
-        ISparkVaultLike(spusdc).grantRole(ISparkVaultLike(spusdc).TAKER_ROLE(), address(almProxy));
+        // bc -l <<< 'scale=27; e( l(1.06)/(60 * 60 * 24 * 365) )' 
+        spUsdc.setVsrBounds(1e27, 1000000001847694957439350563); // 6% APY
+        spUsdc.setDepositCap(500_000_000e6);
 
-        rateLimits.setRateLimitData(
-            controller.sparkVault_getTakeRateLimitKey(spusdc),
-            10e6,
-            uint256(100e6) / 1 hours
-        );
+        spUsdc.grantRole(spUsdc.TAKER_ROLE(),  address(almProxy));
+        spUsdc.grantRole(spUsdc.SETTER_ROLE(), address(administeredAgent));
+
+        rateLimits.setUnlimitedRateLimitData(controller.sparkVault_getTakeRateLimitKey(spusdc));
     }
 
 }
