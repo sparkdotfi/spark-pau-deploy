@@ -197,7 +197,7 @@ contract XLayerPostDeployTestsProduction is XLayerPostDeployTestsBase {
         ETHEREUM_CCTP_MINT_RECIPIENT = 0x8D719A830b00e5571db00D173505CD56c0Ec224a;
 
         CCTP_MIN_FEE_CAP_RATE = 0;
-        CCTP_MAX_FEE_CAP_RATE = 100;
+        CCTP_MAX_FEE_CAP_RATE = 0;
 
         CCTP_TO_CCTP_USDC_MAX_AMOUNT = type(uint256).max;
         CCTP_TO_CCTP_USDC_SLOPE      = 0;
@@ -219,7 +219,7 @@ contract XLayerPostDeployTestsProduction is XLayerPostDeployTestsBase {
     }
 
     function _getBlock() internal override pure returns (uint256) {
-        return 0;
+        return 70378331;
     }
 
 }

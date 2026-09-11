@@ -555,7 +555,7 @@ contract MainnetPostDeployTestsProduction is MainnetPostDeployTestsBase {
     }
 
     function _getBlock() internal override pure returns (uint256) {
-        return 0;
+        return 25955579;
     }
 
 }
