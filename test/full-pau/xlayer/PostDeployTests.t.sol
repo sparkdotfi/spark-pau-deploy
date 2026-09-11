@@ -194,7 +194,7 @@ contract XLayerPostDeployTestsProduction is XLayerPostDeployTestsBase {
         string memory json = vm.readFile("deployments/xlayer-production.json");
 
         // CCTP facet onboarding.
-        ETHEREUM_CCTP_MINT_RECIPIENT = 0x5A7e6fF9A4836275b469C7413fA40294661A2017;
+        ETHEREUM_CCTP_MINT_RECIPIENT = 0x8D719A830b00e5571db00D173505CD56c0Ec224a;
 
         CCTP_MIN_FEE_CAP_RATE = 0;
         CCTP_MAX_FEE_CAP_RATE = 100;

@@ -125,13 +125,16 @@ abstract contract DeploySparkPAUFullBase is Script {
     function _getAgentConfigs() internal returns (IDefaultPAUAssembler.AdministeredAgentConfig[] memory agentConfigs) {
         address[] memory agentAdmins   = new address[](1);
         address[] memory agentActors   = new address[](1);
-        address[] memory agentGrantors = new address[](1);
+        address[] memory agentGrantors = new address[](address(grantor) == address(0) ? 0 : 1);
         address[] memory agentRevokers = new address[](1);
 
         agentAdmins[0]   = admin;
         agentActors[0]   = relayer;
-        agentGrantors[0] = grantor;
         agentRevokers[0] = freezer;
+
+        if (agentGrantors.length > 0) {
+            agentGrantors[0] = grantor;
+        }
 
         agentConfigs = new IDefaultPAUAssembler.AdministeredAgentConfig[](1); // Only one allocator agent is deployed.
 
