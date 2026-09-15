@@ -1,0 +1,19 @@
+{
+  "_info": "Spark Mainnet Production PAU configuration.",
+
+  "chainId": 1,
+
+  "admin": "0x3300f198988e4C9C63F75dF86De36421f06af8c4",
+  "beacon": "0xd47230358AB6c52A0a988150Ac4Ab888FE8B7786",
+  "administeredAgent": "0xD30faA074D023af8525750561beC2Aa181562866",
+  "controller": "0x4623cdEf0FB92499fd20f710318Cf17B8a7EB6bC",
+  "deployer": "0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f",
+
+  "_cctpFacet": "Values to onboard the CCTP facet.",
+  "xlayerDomainId": 37,
+  "xlayerAlmProxy": "0xe6D5d041Fc5e7fDD0A53C13e78a1cc7e4ffCb667",
+
+  "_erc4626Facet": "Values to onboard the ERC4626 facet.",
+  "usdc": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  "susdc": "0xBc65ad17c5C0a2A4D159fa5a503f4992c7B545FE"
+}

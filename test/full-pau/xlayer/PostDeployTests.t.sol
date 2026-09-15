@@ -30,8 +30,12 @@ abstract contract XLayerPostDeployTestsBase is PostDeployTestBase {
     uint32  internal CCTP_MIN_FEE_CAP_RATE;
     uint32  internal CCTP_MAX_FEE_CAP_RATE;
 
-    uint256 internal CCTP_USDC_MAX_AMOUNT;
-    uint256 internal CCTP_USDC_SLOPE;
+    uint256 internal CCTP_TO_CCTP_USDC_MAX_AMOUNT;
+    uint256 internal CCTP_TO_CCTP_USDC_SLOPE;
+
+    uint256 internal CCTP_TO_DOMAIN_USDC_MAX_AMOUNT;
+    uint256 internal CCTP_TO_DOMAIN_USDC_SLOPE;
+
     uint256 internal TRANSFER_ASSET_USDC_MAX_AMOUNT;
     uint256 internal TRANSFER_ASSET_USDC_SLOPE;
 
@@ -99,8 +103,8 @@ abstract contract XLayerPostDeployTestsBase is PostDeployTestBase {
 
         // 1b. Rate limits state
 
-        _assertRateLimitData(controller.cctp_toCCTPRateLimitKey(),                          CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
-        _assertRateLimitData(controller.cctp_getToDomainRateLimitKey(ETHEREUM_CCTP_DOMAIN), CCTP_USDC_MAX_AMOUNT, CCTP_USDC_SLOPE);
+        _assertRateLimitData(controller.cctp_toCCTPRateLimitKey(),                          CCTP_TO_CCTP_USDC_MAX_AMOUNT,   CCTP_TO_CCTP_USDC_SLOPE);
+        _assertRateLimitData(controller.cctp_getToDomainRateLimitKey(ETHEREUM_CCTP_DOMAIN), CCTP_TO_DOMAIN_USDC_MAX_AMOUNT, CCTP_TO_DOMAIN_USDC_SLOPE);
 
         // 2. TransferAsset facet onboarding
 
@@ -138,8 +142,12 @@ contract XLayerPostDeployTestsStaging is XLayerPostDeployTestsBase {
 
         CCTP_MIN_FEE_CAP_RATE = 0;
         CCTP_MAX_FEE_CAP_RATE = 100;
-        CCTP_USDC_MAX_AMOUNT  = 10e6;
-        CCTP_USDC_SLOPE       = uint256(100e6) / 1 hours;
+
+        CCTP_TO_CCTP_USDC_MAX_AMOUNT = 10e6;
+        CCTP_TO_CCTP_USDC_SLOPE      = uint256(100e6) / 1 hours;
+
+        CCTP_TO_DOMAIN_USDC_MAX_AMOUNT = 10e6;
+        CCTP_TO_DOMAIN_USDC_SLOPE      = uint256(100e6) / 1 hours;
 
         // TransferAsset facet onboarding.
         TRANSFER_ASSET_USDC_MAX_AMOUNT = 10e6;
@@ -151,25 +159,68 @@ contract XLayerPostDeployTestsStaging is XLayerPostDeployTestsBase {
         SPARK_VAULT_USDC_MAX_AMOUNT = 10e6;
         SPARK_VAULT_USDC_SLOPE      = uint256(100e6) / 1 hours;
 
-        _setUpAddresses({
-            _agentFactory      : json.readAddress(".agentFactory"),
-            _assembler         : json.readAddress(".defaultPAUAssembler"),
-            _beacon            : json.readAddress(".beacon"),
-            _pauFactory        : json.readAddress(".pauFactory"),
-            _accessControls    : json.readAddress(".accessControls"),
-            _administeredAgent : json.readAddress(".administeredAgent"),
-            _almProxy          : json.readAddress(".proxy"),
-            _controller        : json.readAddress(".controller"),
-            _rateLimits        : json.readAddress(".rateLimits"),
-            _admin             : json.readAddress(".admin"),
-            _deployer          : json.readAddress(".deployer"),
-            _relayer           : json.readAddress(".relayer"),
-            _freezer           : json.readAddress(".freezer")
-        });
+        _setUpAddresses(json);
     }
 
     function _getBlock() internal override pure returns (uint256) {
         return 70207296;
     }
 
+    // Override to assert grantor count is 0 in staging.
+    function _assertAdministeredAgentState() internal override view {
+        assertEq(administeredAgent.adminCount(),   1);
+        assertEq(administeredAgent.actorCount(),   1);
+        assertEq(administeredAgent.grantorCount(), 0);
+        assertEq(administeredAgent.revokerCount(), 1);
+
+        assertEq(administeredAgent.getAdmin(0),   admin);
+        assertEq(administeredAgent.getActor(0),   relayer);
+        assertEq(administeredAgent.getRevoker(0), freezer);
+
+        assertEq(administeredAgent.getIsAdmin(deployer),              false);
+        assertEq(administeredAgent.getIsAdmin(address(assembler)),    false);
+        assertEq(administeredAgent.getIsAdmin(address(agentFactory)), false);
+    }
+
 }
+
+contract XLayerPostDeployTestsProduction is XLayerPostDeployTestsBase {
+
+    using stdJson for string;
+
+    function setUp() public override {
+        super.setUp();
+
+        string memory json = vm.readFile("deployments/xlayer-production.json");
+
+        // CCTP facet onboarding.
+        ETHEREUM_CCTP_MINT_RECIPIENT = 0x8D719A830b00e5571db00D173505CD56c0Ec224a;
+
+        CCTP_MIN_FEE_CAP_RATE = 0;
+        CCTP_MAX_FEE_CAP_RATE = 0;
+
+        CCTP_TO_CCTP_USDC_MAX_AMOUNT = type(uint256).max;
+        CCTP_TO_CCTP_USDC_SLOPE      = 0;
+
+        CCTP_TO_DOMAIN_USDC_MAX_AMOUNT = 10_000_000e6;
+        CCTP_TO_DOMAIN_USDC_SLOPE      = uint256(250_000_000e6) / 1 days;
+
+        // TransferAsset facet onboarding.
+        TRANSFER_ASSET_USDC_MAX_AMOUNT = type(uint256).max;
+        TRANSFER_ASSET_USDC_SLOPE      = 0;
+
+        // SparkVault onboarding.
+        SPUSDC = json.readAddress(".spUSDC");
+
+        SPARK_VAULT_USDC_MAX_AMOUNT = type(uint256).max;
+        SPARK_VAULT_USDC_SLOPE      = 0;
+
+        _setUpAddresses(json);
+    }
+
+    function _getBlock() internal override pure returns (uint256) {
+        return 70378331;
+    }
+
+}
+
