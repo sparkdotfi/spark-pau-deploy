@@ -121,7 +121,11 @@ abstract contract CrossChainE2ETestBase is Test {
         vm.prank(XLAYER_RELAYER);
         xlayerAgent.call(address(xlayerController), abi.encodeCall(xlayerController.sparkVault_take, (address(spusdc), DEPOSIT_AMOUNT)));
 
-        assertEq(xlayerRateLimits.getCurrentRateLimit(takeKey), TAKE_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
+        if (TAKE_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(xlayerRateLimits.getCurrentRateLimit(takeKey), TAKE_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
+        } else {
+            assertEq(xlayerRateLimits.getCurrentRateLimit(takeKey), type(uint256).max);
+        }
 
         assertEq(xlayerUsdc.balanceOf(address(spusdc)),  0);
         assertEq(xlayerUsdc.balanceOf(XLAYER_ALM_PROXY), DEPOSIT_AMOUNT);
@@ -131,16 +135,34 @@ abstract contract CrossChainE2ETestBase is Test {
         bytes32 xlayerCctpKey       = xlayerController.cctp_toCCTPRateLimitKey();
         bytes32 xlayerCctpDomainKey = xlayerController.cctp_getToDomainRateLimitKey(ETHEREUM_CCTP_DOMAIN);
 
-        assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpKey),       CCTP_RATE_LIMIT_MAX_AMOUNT);
-        assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT);
+        if (CCTP_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpKey), CCTP_RATE_LIMIT_MAX_AMOUNT);
+        } else {
+            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpKey), type(uint256).max);
+        }
+
+        if (CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT);
+        } else {
+            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpDomainKey), type(uint256).max);
+        }
 
         uint256 xlayerUsdcSupply = xlayerUsdc.totalSupply();
 
         vm.prank(XLAYER_RELAYER);
         xlayerAgent.call(address(xlayerController), abi.encodeCall(xlayerController.cctp_transfer, (DEPOSIT_AMOUNT, ETHEREUM_CCTP_DOMAIN, 0)));
 
-        assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpKey),       CCTP_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
-        assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
+        if (CCTP_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpKey), CCTP_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
+        } else {
+            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpKey), type(uint256).max);
+        }
+
+        if (CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
+        } else {
+            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpDomainKey), type(uint256).max);
+        }
 
         assertEq(xlayerUsdc.balanceOf(XLAYER_ALM_PROXY), 0);
         assertEq(xlayerUsdc.totalSupply(),               xlayerUsdcSupply - DEPOSIT_AMOUNT);
@@ -163,8 +185,17 @@ abstract contract CrossChainE2ETestBase is Test {
         bytes32 depositKey  = mainnetController.erc4626_getDepositRateLimitKey(Ethereum.SUSDC, Ethereum.USDC);
         bytes32 withdrawKey = mainnetController.erc4626_getWithdrawRateLimitKey(Ethereum.SUSDC);
 
-        assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey),  DEPOSIT_RATE_LIMIT_MAX_AMOUNT);
-        assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), WITHDRAW_RATE_LIMIT_MAX_AMOUNT);
+        if (DEPOSIT_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey), DEPOSIT_RATE_LIMIT_MAX_AMOUNT);
+        } else {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey), type(uint256).max);
+        }
+
+        if (WITHDRAW_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), WITHDRAW_RATE_LIMIT_MAX_AMOUNT);
+        } else {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), type(uint256).max);
+        }
 
         uint256 expectedShares = susdc.convertToShares(DEPOSIT_AMOUNT);
 
@@ -173,8 +204,17 @@ abstract contract CrossChainE2ETestBase is Test {
         vm.prank(MAINNET_RELAYER);
         mainnetAgent.call(address(mainnetController), abi.encodeCall(mainnetController.erc4626_deposit, (Ethereum.SUSDC, DEPOSIT_AMOUNT, expectedShares)));
 
-        assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey),  DEPOSIT_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
-        assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), WITHDRAW_RATE_LIMIT_MAX_AMOUNT);
+        if (DEPOSIT_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey), DEPOSIT_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
+        } else {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey), type(uint256).max);
+        }
+
+        if (WITHDRAW_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), WITHDRAW_RATE_LIMIT_MAX_AMOUNT);
+        } else {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), type(uint256).max);
+        }
 
         assertEq(usdc.balanceOf(MAINNET_ALM_PROXY),  0);
         assertEq(susdc.balanceOf(MAINNET_ALM_PROXY), expectedShares);
@@ -195,8 +235,17 @@ abstract contract CrossChainE2ETestBase is Test {
         vm.prank(MAINNET_RELAYER);
         mainnetAgent.call(address(mainnetController), abi.encodeCall(mainnetController.erc4626_redeem, (Ethereum.SUSDC, expectedShares, usdcWithYield)));
 
-        assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey),  DEPOSIT_RATE_LIMIT_MAX_AMOUNT);
-        assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), WITHDRAW_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
+        if (DEPOSIT_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey), DEPOSIT_RATE_LIMIT_MAX_AMOUNT);
+        } else {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey), type(uint256).max);
+        }
+
+        if (WITHDRAW_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), WITHDRAW_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
+        } else {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), type(uint256).max);
+        }
 
         assertEq(susdc.balanceOf(MAINNET_ALM_PROXY), 0);
         assertEq(usdc.balanceOf(MAINNET_ALM_PROXY),  usdcWithYield);
@@ -206,14 +255,32 @@ abstract contract CrossChainE2ETestBase is Test {
         bytes32 mainnetCctpKey       = mainnetController.cctp_toCCTPRateLimitKey();
         bytes32 mainnetCctpDomainKey = mainnetController.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN);
 
-        assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey),       CCTP_RATE_LIMIT_MAX_AMOUNT);
-        assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT);
+        if (CCTP_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey), CCTP_RATE_LIMIT_MAX_AMOUNT);
+        } else {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey), type(uint256).max);
+        }
+
+        if (CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT);
+        } else {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpDomainKey), type(uint256).max);
+        }
 
         vm.prank(MAINNET_RELAYER);
         mainnetAgent.call(address(mainnetController), abi.encodeCall(mainnetController.cctp_transfer, (usdcWithYield, XLAYER_CCTP_DOMAIN, 0)));
 
-        assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey),       CCTP_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
-        assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
+        if (CCTP_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey),       CCTP_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
+        } else {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey), type(uint256).max);
+        }
+
+        if (CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
+        } else {
+            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpDomainKey), type(uint256).max);
+        }
 
         assertEq(usdc.balanceOf(MAINNET_ALM_PROXY), 0);
         assertEq(usdc.totalSupply(),                mainnetUsdcSupply + DEPOSIT_AMOUNT - usdcWithYield);
@@ -238,7 +305,11 @@ abstract contract CrossChainE2ETestBase is Test {
         vm.prank(XLAYER_RELAYER);
         xlayerAgent.call(address(xlayerController), abi.encodeCall(xlayerController.transferAsset_transfer, (address(xlayerUsdc), address(spusdc), usdcWithYield)));
 
-        assertEq(xlayerRateLimits.getCurrentRateLimit(transferKey), TRANSFER_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
+        if (TRANSFER_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
+            assertEq(xlayerRateLimits.getCurrentRateLimit(transferKey), TRANSFER_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
+        } else {
+            assertEq(xlayerRateLimits.getCurrentRateLimit(transferKey), type(uint256).max);
+        }
 
         assertEq(xlayerUsdc.balanceOf(XLAYER_ALM_PROXY), 0);
         assertEq(xlayerUsdc.balanceOf(address(spusdc)),  usdcWithYield);
@@ -309,6 +380,71 @@ contract CrossChainE2ETestStaging is CrossChainE2ETestBase {
 
         mainnet = getChain("mainnet").createSelectFork(25941444); // September 9, 2026
         xlayer  = getChain("xlayer").createSelectFork(70207535);  // September 9, 2026
+
+        bridge = CCTPv2BridgeTesting.init(Bridge({
+            bridgeType                     : BridgeType.CCTP_V2,
+            source                         : xlayer,
+            destination                    : mainnet,
+            sourceCrossChainMessenger      : CCTP_MESSAGE_TRANSMITTER,
+            destinationCrossChainMessenger : CCTP_MESSAGE_TRANSMITTER,
+            lastSourceLogIndex             : 0,
+            lastDestinationLogIndex        : 0,
+            extraData                      : ""
+        }));
+    }
+
+}
+
+contract CrossChainE2ETestProduction is CrossChainE2ETestBase {
+
+    using DomainHelpers       for *;
+    using CCTPv2BridgeTesting for Bridge;
+    using stdJson for string;
+
+    /**********************************************************************************************/
+    /*** Setup                                                                                  ***/
+    /**********************************************************************************************/
+
+    function setUp() public override {
+        super.setUp();
+
+        string memory mainnetJson = vm.readFile("deployments/mainnet-production.json");
+        string memory xlayerJson  = vm.readFile("deployments/xlayer-production.json");
+
+        DEPOSIT_AMOUNT                    = 5e6;
+        TAKE_RATE_LIMIT_MAX_AMOUNT        = type(uint256).max;
+        CCTP_RATE_LIMIT_MAX_AMOUNT        = type(uint256).max;
+        CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT = 10_000_000e6;
+        TRANSFER_RATE_LIMIT_MAX_AMOUNT    = type(uint256).max;
+        DEPOSIT_RATE_LIMIT_MAX_AMOUNT     = type(uint256).max;
+        WITHDRAW_RATE_LIMIT_MAX_AMOUNT    = type(uint256).max;
+
+        ADMIN                    = mainnetJson.readAddress(".admin");
+        CCTP_MESSAGE_TRANSMITTER = CCTPv2Forwarder.MESSAGE_TRANSMITTER_CIRCLE_ETHEREUM;
+
+        ETHEREUM_CCTP_DOMAIN = CCTPv2Forwarder.DOMAIN_ID_CIRCLE_ETHEREUM;
+        XLAYER_CCTP_DOMAIN   = 37;
+
+        XLAYER_RELAYER   = xlayerJson.readAddress(".relayer");
+        XLAYER_ALM_PROXY = xlayerJson.readAddress(".proxy");
+
+        MAINNET_RELAYER   = mainnetJson.readAddress(".relayer");
+        MAINNET_ALM_PROXY = mainnetJson.readAddress(".proxy");
+
+        xlayerAgent      = IAdministeredAgent(xlayerJson.readAddress(".administeredAgent"));
+        xlayerController = IForeignControllerFull(xlayerJson.readAddress(".controller"));
+        xlayerRateLimits = IRateLimits(xlayerJson.readAddress(".rateLimits"));
+        spusdc           = ISparkVaultLike(xlayerJson.readAddress(".spUSDC"));
+        xlayerUsdc       = IERC20(XLayer.USDC);
+
+        mainnetAgent      = IAdministeredAgent(mainnetJson.readAddress(".administeredAgent"));
+        mainnetController = IMainnetControllerFull(mainnetJson.readAddress(".controller"));
+        mainnetRateLimits = IRateLimits(mainnetJson.readAddress(".rateLimits"));
+        susdc             = IERC4626(Ethereum.SUSDC);
+        usdc              = IERC20(Ethereum.USDC);
+
+        mainnet = getChain("mainnet").createSelectFork(25983810); // September 15, 2026
+        xlayer  = getChain("xlayer").createSelectFork(70615304);  // September 15, 2026
 
         bridge = CCTPv2BridgeTesting.init(Bridge({
             bridgeType                     : BridgeType.CCTP_V2,
