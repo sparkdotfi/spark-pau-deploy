@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.34;
 
-import { Test }   from "../lib/forge-std/src/Test.sol";
-import { VmSafe } from "../lib/forge-std/src/Vm.sol";
+import { stdJson } from "../lib/forge-std/src/StdJson.sol";
+import { Test }    from "../lib/forge-std/src/Test.sol";
+import { VmSafe }  from "../lib/forge-std/src/Vm.sol";
 
 import { IAccessControl }                            from "../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
 import { IAccessControls }                           from "../lib/diamond-pau/src/interfaces/IAccessControls.sol";
@@ -30,6 +31,8 @@ interface IDefaultPAUAssemblerLike {
 
 abstract contract PostDeployTestBase is Test {
 
+    using stdJson for string;
+
     bytes32 internal constant DEFAULT_ADMIN_ROLE = 0x00;
     bytes32 internal constant ALLOCATOR_ROLE     = keccak256("ALLOCATOR_ROLE");
     bytes32 internal constant CONTROLLER_ROLE    = keccak256("CONTROLLER");
@@ -49,41 +52,29 @@ abstract contract PostDeployTestBase is Test {
     address internal deployer;
     address internal relayer;
     address internal freezer;
+    address internal grantor;
 
     function setUp() public virtual {
         _setUpXLayerAndRobinhoodForks();
     }
 
-    function _setUpAddresses(
-        address _agentFactory,
-        address _assembler,
-        address _beacon,
-        address _pauFactory,
-        address _accessControls,
-        address _administeredAgent,
-        address _almProxy,
-        address _controller,
-        address _rateLimits,
-        address _admin,
-        address _deployer,
-        address _relayer,
-        address _freezer
-    ) internal {
-        agentFactory = IAdministeredAgentFactory(_agentFactory);
-        assembler    = IDefaultPAUAssemblerLike(_assembler);
-        beacon       = IBeacon(_beacon);
-        pauFactory   = IPAUFactory(_pauFactory);
+    function _setUpAddresses(string memory json) internal {
+        agentFactory = IAdministeredAgentFactory(json.readAddress(".agentFactory"));
+        assembler    = IDefaultPAUAssemblerLike(json.readAddress(".defaultPAUAssembler"));
+        beacon       = IBeacon(json.readAddress(".beacon"));
+        pauFactory   = IPAUFactory(json.readAddress(".pauFactory"));
 
-        accessControls    = IAccessControls(_accessControls);
-        administeredAgent = IAdministeredAgent(_administeredAgent);
-        almProxy          = IALMProxy(_almProxy);
-        controller        = IControllerFull(_controller);
-        rateLimits        = IRateLimits(_rateLimits);
+        accessControls    = IAccessControls(json.readAddress(".accessControls"));
+        administeredAgent = IAdministeredAgent(json.readAddress(".administeredAgent"));
+        almProxy          = IALMProxy(json.readAddress(".proxy"));
+        controller        = IControllerFull(json.readAddress(".controller"));
+        rateLimits        = IRateLimits(json.readAddress(".rateLimits"));
 
-        admin    = _admin;
-        deployer = _deployer;
-        relayer  = _relayer;
-        freezer  = _freezer;
+        admin    = json.readAddress(".admin");
+        deployer = json.readAddress(".deployer");
+        relayer  = json.readAddress(".relayer");
+        freezer  = json.readAddress(".freezer");
+        grantor  = json.readAddress(".grantor");
     }
 
     function _setUpXLayerAndRobinhoodForks() internal {
@@ -104,14 +95,15 @@ abstract contract PostDeployTestBase is Test {
     /*** State Assertions                                                                       ***/
     /**********************************************************************************************/
 
-    function _assertAdministeredAgentState() internal view {
+    function _assertAdministeredAgentState() internal virtual view {
         assertEq(administeredAgent.adminCount(),   1);
         assertEq(administeredAgent.actorCount(),   1);
-        assertEq(administeredAgent.grantorCount(), 0);
+        assertEq(administeredAgent.grantorCount(), 1);
         assertEq(administeredAgent.revokerCount(), 1);
 
         assertEq(administeredAgent.getAdmin(0),   admin);
         assertEq(administeredAgent.getActor(0),   relayer);
+        assertEq(administeredAgent.getGrantor(0), grantor);
         assertEq(administeredAgent.getRevoker(0), freezer);
 
         assertEq(administeredAgent.getIsAdmin(deployer),              false);
