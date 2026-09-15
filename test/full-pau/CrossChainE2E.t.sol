@@ -271,7 +271,7 @@ abstract contract CrossChainE2ETestBase is Test {
         mainnetAgent.call(address(mainnetController), abi.encodeCall(mainnetController.cctp_transfer, (usdcWithYield, XLAYER_CCTP_DOMAIN, 0)));
 
         if (CCTP_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey),       CCTP_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
+            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey), CCTP_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
         } else {
             assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey), type(uint256).max);
         }
