@@ -84,6 +84,20 @@ abstract contract CrossChainE2ETestBase is Test {
         }));
     }
 
+    function _checkRateLimit(
+        IRateLimits rateLimits,
+        bytes32     key,
+        uint256     expectedAmount
+    ) internal {
+        // Get rate limit max amount
+        uint256 maxAmount = rateLimits.getRateLimitData(key).maxAmount;
+
+        assertEq(
+            rateLimits.getCurrentRateLimit(key),
+            maxAmount == type(uint256).max ? type(uint256).max : expectedAmount
+        );
+    }
+
     function test_e2e_roundTrip() external {
         xlayer.selectFork();
 
@@ -114,18 +128,14 @@ abstract contract CrossChainE2ETestBase is Test {
 
         bytes32 takeKey = xlayerController.sparkVault_getTakeRateLimitKey(address(spusdc));
 
-        assertEq(xlayerRateLimits.getCurrentRateLimit(takeKey), TAKE_RATE_LIMIT_MAX_AMOUNT);
+        _checkRateLimit(xlayerRateLimits, takeKey, TAKE_RATE_LIMIT_MAX_AMOUNT);
 
         assertEq(xlayerUsdc.balanceOf(XLAYER_ALM_PROXY), 0);
 
         vm.prank(XLAYER_RELAYER);
         xlayerAgent.call(address(xlayerController), abi.encodeCall(xlayerController.sparkVault_take, (address(spusdc), DEPOSIT_AMOUNT)));
 
-        if (TAKE_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(xlayerRateLimits.getCurrentRateLimit(takeKey), TAKE_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
-        } else {
-            assertEq(xlayerRateLimits.getCurrentRateLimit(takeKey), type(uint256).max);
-        }
+        _checkRateLimit(xlayerRateLimits, takeKey, TAKE_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
 
         assertEq(xlayerUsdc.balanceOf(address(spusdc)),  0);
         assertEq(xlayerUsdc.balanceOf(XLAYER_ALM_PROXY), DEPOSIT_AMOUNT);
@@ -135,34 +145,16 @@ abstract contract CrossChainE2ETestBase is Test {
         bytes32 xlayerCctpKey       = xlayerController.cctp_toCCTPRateLimitKey();
         bytes32 xlayerCctpDomainKey = xlayerController.cctp_getToDomainRateLimitKey(ETHEREUM_CCTP_DOMAIN);
 
-        if (CCTP_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpKey), CCTP_RATE_LIMIT_MAX_AMOUNT);
-        } else {
-            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpKey), type(uint256).max);
-        }
-
-        if (CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT);
-        } else {
-            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpDomainKey), type(uint256).max);
-        }
+        _checkRateLimit(xlayerRateLimits, xlayerCctpKey,       CCTP_RATE_LIMIT_MAX_AMOUNT);
+        _checkRateLimit(xlayerRateLimits, xlayerCctpDomainKey, CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT);
 
         uint256 xlayerUsdcSupply = xlayerUsdc.totalSupply();
 
         vm.prank(XLAYER_RELAYER);
         xlayerAgent.call(address(xlayerController), abi.encodeCall(xlayerController.cctp_transfer, (DEPOSIT_AMOUNT, ETHEREUM_CCTP_DOMAIN, 0)));
 
-        if (CCTP_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpKey), CCTP_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
-        } else {
-            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpKey), type(uint256).max);
-        }
-
-        if (CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
-        } else {
-            assertEq(xlayerRateLimits.getCurrentRateLimit(xlayerCctpDomainKey), type(uint256).max);
-        }
+        _checkRateLimit(xlayerRateLimits, xlayerCctpKey,       CCTP_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
+        _checkRateLimit(xlayerRateLimits, xlayerCctpDomainKey, CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
 
         assertEq(xlayerUsdc.balanceOf(XLAYER_ALM_PROXY), 0);
         assertEq(xlayerUsdc.totalSupply(),               xlayerUsdcSupply - DEPOSIT_AMOUNT);
@@ -185,17 +177,8 @@ abstract contract CrossChainE2ETestBase is Test {
         bytes32 depositKey  = mainnetController.erc4626_getDepositRateLimitKey(Ethereum.SUSDC, Ethereum.USDC);
         bytes32 withdrawKey = mainnetController.erc4626_getWithdrawRateLimitKey(Ethereum.SUSDC);
 
-        if (DEPOSIT_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey), DEPOSIT_RATE_LIMIT_MAX_AMOUNT);
-        } else {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey), type(uint256).max);
-        }
-
-        if (WITHDRAW_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), WITHDRAW_RATE_LIMIT_MAX_AMOUNT);
-        } else {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), type(uint256).max);
-        }
+        _checkRateLimit(mainnetRateLimits, depositKey,  DEPOSIT_RATE_LIMIT_MAX_AMOUNT);
+        _checkRateLimit(mainnetRateLimits, withdrawKey, WITHDRAW_RATE_LIMIT_MAX_AMOUNT);
 
         uint256 expectedShares = susdc.convertToShares(DEPOSIT_AMOUNT);
 
@@ -204,17 +187,8 @@ abstract contract CrossChainE2ETestBase is Test {
         vm.prank(MAINNET_RELAYER);
         mainnetAgent.call(address(mainnetController), abi.encodeCall(mainnetController.erc4626_deposit, (Ethereum.SUSDC, DEPOSIT_AMOUNT, expectedShares)));
 
-        if (DEPOSIT_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey), DEPOSIT_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
-        } else {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey), type(uint256).max);
-        }
-
-        if (WITHDRAW_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), WITHDRAW_RATE_LIMIT_MAX_AMOUNT);
-        } else {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), type(uint256).max);
-        }
+        _checkRateLimit(mainnetRateLimits, depositKey,  DEPOSIT_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
+        _checkRateLimit(mainnetRateLimits, withdrawKey, WITHDRAW_RATE_LIMIT_MAX_AMOUNT);
 
         assertEq(usdc.balanceOf(MAINNET_ALM_PROXY),  0);
         assertEq(susdc.balanceOf(MAINNET_ALM_PROXY), expectedShares);
@@ -235,17 +209,8 @@ abstract contract CrossChainE2ETestBase is Test {
         vm.prank(MAINNET_RELAYER);
         mainnetAgent.call(address(mainnetController), abi.encodeCall(mainnetController.erc4626_redeem, (Ethereum.SUSDC, expectedShares, usdcWithYield)));
 
-        if (DEPOSIT_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey), DEPOSIT_RATE_LIMIT_MAX_AMOUNT);
-        } else {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(depositKey), type(uint256).max);
-        }
-
-        if (WITHDRAW_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), WITHDRAW_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
-        } else {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(withdrawKey), type(uint256).max);
-        }
+        _checkRateLimit(mainnetRateLimits, depositKey,  DEPOSIT_RATE_LIMIT_MAX_AMOUNT);
+        _checkRateLimit(mainnetRateLimits, withdrawKey, WITHDRAW_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
 
         assertEq(susdc.balanceOf(MAINNET_ALM_PROXY), 0);
         assertEq(usdc.balanceOf(MAINNET_ALM_PROXY),  usdcWithYield);
@@ -255,32 +220,14 @@ abstract contract CrossChainE2ETestBase is Test {
         bytes32 mainnetCctpKey       = mainnetController.cctp_toCCTPRateLimitKey();
         bytes32 mainnetCctpDomainKey = mainnetController.cctp_getToDomainRateLimitKey(XLAYER_CCTP_DOMAIN);
 
-        if (CCTP_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey), CCTP_RATE_LIMIT_MAX_AMOUNT);
-        } else {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey), type(uint256).max);
-        }
-
-        if (CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT);
-        } else {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpDomainKey), type(uint256).max);
-        }
+        _checkRateLimit(mainnetRateLimits, mainnetCctpKey,       CCTP_RATE_LIMIT_MAX_AMOUNT);
+        _checkRateLimit(mainnetRateLimits, mainnetCctpDomainKey, CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT);
 
         vm.prank(MAINNET_RELAYER);
         mainnetAgent.call(address(mainnetController), abi.encodeCall(mainnetController.cctp_transfer, (usdcWithYield, XLAYER_CCTP_DOMAIN, 0)));
 
-        if (CCTP_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey), CCTP_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
-        } else {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpKey), type(uint256).max);
-        }
-
-        if (CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpDomainKey), CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
-        } else {
-            assertEq(mainnetRateLimits.getCurrentRateLimit(mainnetCctpDomainKey), type(uint256).max);
-        }
+        _checkRateLimit(mainnetRateLimits, mainnetCctpKey,       CCTP_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
+        _checkRateLimit(mainnetRateLimits, mainnetCctpDomainKey, CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
 
         assertEq(usdc.balanceOf(MAINNET_ALM_PROXY), 0);
         assertEq(usdc.totalSupply(),                mainnetUsdcSupply + DEPOSIT_AMOUNT - usdcWithYield);
@@ -300,16 +247,12 @@ abstract contract CrossChainE2ETestBase is Test {
 
         bytes32 transferKey = xlayerController.transferAsset_getTransferRateLimitKey(address(xlayerUsdc), address(spusdc));
 
-        assertEq(xlayerRateLimits.getCurrentRateLimit(transferKey), TRANSFER_RATE_LIMIT_MAX_AMOUNT);
+        _checkRateLimit(xlayerRateLimits, transferKey, TRANSFER_RATE_LIMIT_MAX_AMOUNT);
 
         vm.prank(XLAYER_RELAYER);
         xlayerAgent.call(address(xlayerController), abi.encodeCall(xlayerController.transferAsset_transfer, (address(xlayerUsdc), address(spusdc), usdcWithYield)));
 
-        if (TRANSFER_RATE_LIMIT_MAX_AMOUNT != type(uint256).max) {
-            assertEq(xlayerRateLimits.getCurrentRateLimit(transferKey), TRANSFER_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
-        } else {
-            assertEq(xlayerRateLimits.getCurrentRateLimit(transferKey), type(uint256).max);
-        }
+        _checkRateLimit(xlayerRateLimits, transferKey, TRANSFER_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
 
         assertEq(xlayerUsdc.balanceOf(XLAYER_ALM_PROXY), 0);
         assertEq(xlayerUsdc.balanceOf(address(spusdc)),  usdcWithYield);
