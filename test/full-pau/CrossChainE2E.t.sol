@@ -27,11 +27,19 @@ interface ISparkVaultLike is IERC4626 {
 
     function TAKER_ROLE() external view returns (bytes32);
 
+    function SETTER_ROLE() external view returns (bytes32);
+
     function depositCap() external view returns (uint256);
+
+    function grantRole(bytes32 role, address account) external;
 
     function hasRole(bytes32 role, address account) external view returns (bool);
 
     function setDepositCap(uint256 newCap) external;
+
+    function setVsrBounds(uint256 minVsr, uint256 maxVsr) external;
+
+    function setVsr(uint256 vsr) external;
 
 }
 
@@ -100,6 +108,13 @@ abstract contract CrossChainE2ETestBase is Test {
 
     function test_e2e_roundTrip() external {
         xlayer.selectFork();
+
+        // Step 0: Set VSR on spUSDC.
+        vm.prank(XLAYER_RELAYER);
+        xlayerAgent.call(
+            address(spusdc),
+            abi.encodeCall(spusdc.setVsr, (1000000001121484774769253326))
+        );
 
         // Step 1: User deposits USDC into spUSDC on X Layer.
 
@@ -208,6 +223,10 @@ abstract contract CrossChainE2ETestBase is Test {
 
         skip(1 days);
 
+        xlayer.selectFork();
+        skip(1 days);
+        mainnet.selectFork();
+
         uint256 usdcWithYield = susdc.convertToAssets(expectedShares);
 
         assertGt(usdcWithYield, DEPOSIT_AMOUNT);
@@ -276,15 +295,15 @@ abstract contract CrossChainE2ETestBase is Test {
         assertEq(xlayerUsdc.balanceOf(address(spusdc)),  usdcWithYield + 1e6);
 
         // Step 11: User redeems.
-        assertEq(spusdc.totalAssets(), DEPOSIT_AMOUNT + 1e6);
+        assertEq(spusdc.totalAssets(), usdcWithYield + 1e6 + 97);
 
         vm.prank(user);
         spusdc.redeem(DEPOSIT_AMOUNT, user, user);
 
-        assertEq(xlayerUsdc.balanceOf(user),            DEPOSIT_AMOUNT);
-        assertEq(xlayerUsdc.balanceOf(address(spusdc)), usdcWithYield - DEPOSIT_AMOUNT + 1e6);
+        assertEq(xlayerUsdc.balanceOf(user),            DEPOSIT_AMOUNT + 484);
+        assertEq(xlayerUsdc.balanceOf(address(spusdc)), usdcWithYield - DEPOSIT_AMOUNT - 484 + 1e6);
 
-        assertEq(spusdc.totalAssets(),   1e6);
+        assertEq(spusdc.totalAssets(),   1e6 + 96);
         assertEq(spusdc.totalSupply(),   1e6);
         assertEq(spusdc.balanceOf(user), 0);
     }
@@ -352,6 +371,25 @@ contract CrossChainE2ETestStaging is CrossChainE2ETestBase {
             lastDestinationLogIndex        : 0,
             extraData                      : ""
         }));
+
+        vm.startPrank(ADMIN);
+
+        // bc -l <<< 'scale=27; e( l(1.06)/(60 * 60 * 24 * 365) )'
+        spusdc.setVsrBounds(1e27, 1000000001847694957439350563); // 6% APY
+
+        spusdc.grantRole(spusdc.SETTER_ROLE(), address(xlayerAgent));
+
+        vm.stopPrank();
+
+        // Seed the vault with USDC
+        address seeder = makeAddr("seeder");
+
+        deal(address(xlayerUsdc), seeder, 1e6);
+
+        vm.startPrank(seeder);
+        xlayerUsdc.approve(address(spusdc), 1e6);
+        spusdc.deposit(1e6, seeder);
+        vm.stopPrank();
     }
 
 }
