@@ -239,6 +239,8 @@ contract CrossChainE2ETestStaging is CrossChainE2ETestBase {
 
         uint256 usdcWithYield = susdc.convertToAssets(expectedShares);
 
+        assertEq(usdcWithYield, 5.000484e6);
+
         // Step 7: Relayer withdraws from sUSDC by redeeming every share.
 
         vm.prank(MAINNET_RELAYER);
@@ -304,21 +306,21 @@ contract CrossChainE2ETestProduction is CrossChainE2ETestBase {
         ETHEREUM_CCTP_DOMAIN = CCTPv2Forwarder.DOMAIN_ID_CIRCLE_ETHEREUM;
         XLAYER_CCTP_DOMAIN   = 37;
 
-        XLAYER_RELAYER   = xlayerJson.readAddress(".relayer");
-        XLAYER_ALM_PROXY = xlayerJson.readAddress(".proxy");
+        XLAYER_RELAYER   = XLayer.ALM_RELAYER_MULTISIG;
+        XLAYER_ALM_PROXY = XLayer.SPUSDC_PAU_ALM_PROXY;
 
-        MAINNET_RELAYER   = mainnetJson.readAddress(".relayer");
-        MAINNET_ALM_PROXY = mainnetJson.readAddress(".proxy");
+        MAINNET_RELAYER   = Ethereum.ALM_RELAYER_MULTISIG;
+        MAINNET_ALM_PROXY = Ethereum.SPUSDC_PAU_ALM_PROXY;
 
-        xlayerAgent      = IAdministeredAgent(xlayerJson.readAddress(".administeredAgent"));
-        xlayerController = IForeignControllerFull(xlayerJson.readAddress(".controller"));
-        xlayerRateLimits = IRateLimits(xlayerJson.readAddress(".rateLimits"));
-        spusdc           = ISparkVaultLike(xlayerJson.readAddress(".spUSDC"));
+        xlayerAgent      = IAdministeredAgent(XLayer.SPUSDC_PAU_ADMINISTERED_AGENT);
+        xlayerController = IForeignControllerFull(XLayer.SPUSDC_PAU_CONTROLLER);
+        xlayerRateLimits = IRateLimits(XLayer.SPUSDC_PAU_RATELIMITS);
+        spusdc           = ISparkVaultLike(XLayer.SPARK_VAULT_V2_SPUSDC);
         xlayerUsdc       = IERC20(XLayer.USDC);
 
-        mainnetAgent      = IAdministeredAgent(mainnetJson.readAddress(".administeredAgent"));
-        mainnetController = IMainnetControllerFull(mainnetJson.readAddress(".controller"));
-        mainnetRateLimits = IRateLimits(mainnetJson.readAddress(".rateLimits"));
+        mainnetAgent      = IAdministeredAgent(Ethereum.SPUSDC_PAU_ADMINISTERED_AGENT);
+        mainnetController = IMainnetControllerFull(Ethereum.SPUSDC_PAU_CONTROLLER);
+        mainnetRateLimits = IRateLimits(Ethereum.SPUSDC_PAU_RATELIMITS);
         susdc             = IERC4626(Ethereum.SUSDC);
         usdc              = IERC20(Ethereum.USDC);
 
