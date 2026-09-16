@@ -3,6 +3,8 @@ pragma solidity ^0.8.34;
 
 import { stdJson }  from "../../../lib/forge-std/src/StdJson.sol";
 
+import { XLayer } from "../../../lib/spark-address-registry/src/XLayer.sol";
+
 import { IEnumerableIntegrations as IEI } from "../../../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
 
 import { PostDeployTestBase } from "../../PostDeployTestBase.t.sol";
@@ -23,7 +25,7 @@ abstract contract XLayerPostDeployTestsBase is PostDeployTestBase {
 
     uint32 internal constant ETHEREUM_CCTP_DOMAIN = 0;
 
-    address internal constant USDC = 0xB6CEceAB302E2E4948951eE7843FC24E92933061;
+    address internal constant USDC = XLayer.USDC;
 
     address internal ETHEREUM_CCTP_MINT_RECIPIENT;
 
