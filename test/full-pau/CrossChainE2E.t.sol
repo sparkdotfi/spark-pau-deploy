@@ -106,10 +106,10 @@ abstract contract CrossChainE2ETestBase is Test {
         deal(address(xlayerUsdc), user, DEPOSIT_AMOUNT);
 
         assertEq(xlayerUsdc.balanceOf(user),            DEPOSIT_AMOUNT);
-        assertEq(xlayerUsdc.balanceOf(address(spusdc)), 0);
+        assertEq(xlayerUsdc.balanceOf(address(spusdc)), 1e6);
 
-        assertEq(spusdc.totalAssets(),   0);
-        assertEq(spusdc.totalSupply(),   0);
+        assertEq(spusdc.totalAssets(),   1e6);
+        assertEq(spusdc.totalSupply(),   1e6);
         assertEq(spusdc.balanceOf(user), 0);
 
         vm.startPrank(user);
@@ -118,10 +118,10 @@ abstract contract CrossChainE2ETestBase is Test {
         vm.stopPrank();
 
         assertEq(xlayerUsdc.balanceOf(user),            0);
-        assertEq(xlayerUsdc.balanceOf(address(spusdc)), DEPOSIT_AMOUNT);
+        assertEq(xlayerUsdc.balanceOf(address(spusdc)), DEPOSIT_AMOUNT + 1e6);
 
-        assertEq(spusdc.totalAssets(),   DEPOSIT_AMOUNT);
-        assertEq(spusdc.totalSupply(),   DEPOSIT_AMOUNT);
+        assertEq(spusdc.totalAssets(),   DEPOSIT_AMOUNT + 1e6);
+        assertEq(spusdc.totalSupply(),   DEPOSIT_AMOUNT + 1e6);
         assertEq(spusdc.balanceOf(user), DEPOSIT_AMOUNT);
 
         // Step 2: Relayer takes the USDC out of spUSDC into the ALMProxy on X Layer.
@@ -133,11 +133,14 @@ abstract contract CrossChainE2ETestBase is Test {
         assertEq(xlayerUsdc.balanceOf(XLAYER_ALM_PROXY), 0);
 
         vm.prank(XLAYER_RELAYER);
-        xlayerAgent.call(address(xlayerController), abi.encodeCall(xlayerController.sparkVault_take, (address(spusdc), DEPOSIT_AMOUNT)));
+        xlayerAgent.call(
+            address(xlayerController),
+            abi.encodeCall(xlayerController.sparkVault_take, (address(spusdc), DEPOSIT_AMOUNT))
+        );
 
         _checkRateLimit(xlayerRateLimits, takeKey, TAKE_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
 
-        assertEq(xlayerUsdc.balanceOf(address(spusdc)),  0);
+        assertEq(xlayerUsdc.balanceOf(address(spusdc)),  1e6);
         assertEq(xlayerUsdc.balanceOf(XLAYER_ALM_PROXY), DEPOSIT_AMOUNT);
 
         // Step 3: Relayer bridges the USDC to Ethereum with CCTP V2 (burn on X Layer).
@@ -151,7 +154,10 @@ abstract contract CrossChainE2ETestBase is Test {
         uint256 xlayerUsdcSupply = xlayerUsdc.totalSupply();
 
         vm.prank(XLAYER_RELAYER);
-        xlayerAgent.call(address(xlayerController), abi.encodeCall(xlayerController.cctp_transfer, (DEPOSIT_AMOUNT, ETHEREUM_CCTP_DOMAIN, 0)));
+        xlayerAgent.call(
+            address(xlayerController),
+            abi.encodeCall(xlayerController.cctp_transfer, (DEPOSIT_AMOUNT, ETHEREUM_CCTP_DOMAIN, 0))
+        );
 
         _checkRateLimit(xlayerRateLimits, xlayerCctpKey,       CCTP_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
         _checkRateLimit(xlayerRateLimits, xlayerCctpDomainKey, CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
@@ -185,7 +191,10 @@ abstract contract CrossChainE2ETestBase is Test {
         assertEq(susdc.balanceOf(MAINNET_ALM_PROXY), 0);
 
         vm.prank(MAINNET_RELAYER);
-        mainnetAgent.call(address(mainnetController), abi.encodeCall(mainnetController.erc4626_deposit, (Ethereum.SUSDC, DEPOSIT_AMOUNT, expectedShares)));
+        mainnetAgent.call(
+            address(mainnetController),
+            abi.encodeCall(mainnetController.erc4626_deposit, (Ethereum.SUSDC, DEPOSIT_AMOUNT, expectedShares))
+        );
 
         _checkRateLimit(mainnetRateLimits, depositKey,  DEPOSIT_RATE_LIMIT_MAX_AMOUNT - DEPOSIT_AMOUNT);
         _checkRateLimit(mainnetRateLimits, withdrawKey, WITHDRAW_RATE_LIMIT_MAX_AMOUNT);
@@ -207,7 +216,10 @@ abstract contract CrossChainE2ETestBase is Test {
         // Step 7: Relayer withdraws from sUSDC by redeeming every share.
 
         vm.prank(MAINNET_RELAYER);
-        mainnetAgent.call(address(mainnetController), abi.encodeCall(mainnetController.erc4626_redeem, (Ethereum.SUSDC, expectedShares, usdcWithYield)));
+        mainnetAgent.call(
+            address(mainnetController),
+            abi.encodeCall(mainnetController.erc4626_redeem, (Ethereum.SUSDC, expectedShares, usdcWithYield))
+        );
 
         _checkRateLimit(mainnetRateLimits, depositKey,  DEPOSIT_RATE_LIMIT_MAX_AMOUNT);
         _checkRateLimit(mainnetRateLimits, withdrawKey, WITHDRAW_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
@@ -224,7 +236,10 @@ abstract contract CrossChainE2ETestBase is Test {
         _checkRateLimit(mainnetRateLimits, mainnetCctpDomainKey, CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT);
 
         vm.prank(MAINNET_RELAYER);
-        mainnetAgent.call(address(mainnetController), abi.encodeCall(mainnetController.cctp_transfer, (usdcWithYield, XLAYER_CCTP_DOMAIN, 0)));
+        mainnetAgent.call(
+            address(mainnetController),
+            abi.encodeCall(mainnetController.cctp_transfer, (usdcWithYield, XLAYER_CCTP_DOMAIN, 0))
+        );
 
         _checkRateLimit(mainnetRateLimits, mainnetCctpKey,       CCTP_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
         _checkRateLimit(mainnetRateLimits, mainnetCctpDomainKey, CCTP_DOMAIN_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
@@ -250,24 +265,27 @@ abstract contract CrossChainE2ETestBase is Test {
         _checkRateLimit(xlayerRateLimits, transferKey, TRANSFER_RATE_LIMIT_MAX_AMOUNT);
 
         vm.prank(XLAYER_RELAYER);
-        xlayerAgent.call(address(xlayerController), abi.encodeCall(xlayerController.transferAsset_transfer, (address(xlayerUsdc), address(spusdc), usdcWithYield)));
+        xlayerAgent.call(
+            address(xlayerController),
+            abi.encodeCall(xlayerController.transferAsset_transfer, (address(xlayerUsdc), address(spusdc), usdcWithYield))
+        );
 
         _checkRateLimit(xlayerRateLimits, transferKey, TRANSFER_RATE_LIMIT_MAX_AMOUNT - usdcWithYield);
 
         assertEq(xlayerUsdc.balanceOf(XLAYER_ALM_PROXY), 0);
-        assertEq(xlayerUsdc.balanceOf(address(spusdc)),  usdcWithYield);
+        assertEq(xlayerUsdc.balanceOf(address(spusdc)),  usdcWithYield + 1e6);
 
         // Step 11: User redeems.
-        assertEq(spusdc.totalAssets(), DEPOSIT_AMOUNT);
+        assertEq(spusdc.totalAssets(), DEPOSIT_AMOUNT + 1e6);
 
         vm.prank(user);
         spusdc.redeem(DEPOSIT_AMOUNT, user, user);
 
         assertEq(xlayerUsdc.balanceOf(user),            DEPOSIT_AMOUNT);
-        assertEq(xlayerUsdc.balanceOf(address(spusdc)), usdcWithYield - DEPOSIT_AMOUNT);
+        assertEq(xlayerUsdc.balanceOf(address(spusdc)), usdcWithYield - DEPOSIT_AMOUNT + 1e6);
 
-        assertEq(spusdc.totalAssets(),   0);
-        assertEq(spusdc.totalSupply(),   0);
+        assertEq(spusdc.totalAssets(),   1e6);
+        assertEq(spusdc.totalSupply(),   1e6);
         assertEq(spusdc.balanceOf(user), 0);
     }
 
@@ -386,8 +404,8 @@ contract CrossChainE2ETestProduction is CrossChainE2ETestBase {
         susdc             = IERC4626(Ethereum.SUSDC);
         usdc              = IERC20(Ethereum.USDC);
 
-        mainnet = getChain("mainnet").createSelectFork(25983810); // September 15, 2026
-        xlayer  = getChain("xlayer").createSelectFork(70615304);  // September 15, 2026
+        mainnet = getChain("mainnet").createSelectFork(25990651); // September 16, 2026
+        xlayer  = getChain("xlayer").createSelectFork(70800026);  // September 16, 2026
 
         bridge = CCTPv2BridgeTesting.init(Bridge({
             bridgeType                     : BridgeType.CCTP_V2,
