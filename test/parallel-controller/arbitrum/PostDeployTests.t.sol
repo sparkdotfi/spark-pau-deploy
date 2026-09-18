@@ -24,7 +24,7 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
     function setUp() public override virtual {
         super.setUp();
 
-        vm.createSelectFork(getChain("arbitrum").rpcUrl, _getBlock());
+        vm.createSelectFork(getChain("arbitrum_one").rpcUrl, _getBlock());
     }
 
     function _getBlock() internal virtual pure returns (uint256) {
@@ -80,13 +80,19 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
 
     // Deployed PAU stack
 
-    function test_administeredAgentStateAndEvents() external {
+    function test_administeredAgentState() external {
         _assertAdministeredAgentState();
+    }
+
+    function test_administeredAgentEvents() external {
         _assertAdministeredAgentEvents();
     }
 
-    function test_accessControlsStateAndEvents() external {
+    function test_accessControlsState() external {
         _assertAccessControlsState();
+    }
+
+    function test_accessControlsEvents() external {
         _assertAccessControlsEvents();
     }
 
@@ -94,15 +100,17 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
         _assertALMProxyState_unchanged();
     }
 
-    function test_rateLimitsStateAndEvents() external {
+    function test_rateLimitsState() external {
         _assertRateLimitsInitializationState();
+    }
+
+    function test_rateLimitsEvents() external {
         _assertRateLimitsEvents();
     }
 
-    function test_controllerStateAndEvents() external {
+    function test_controllerState() external {
         _assertControllerInitializationState();
-        _assertControllerEvents();
-        
+
         // Exactly one integration: CCTP_FACET.
         IEI.Integration[] memory integrations = controller.integrations();
 
@@ -127,6 +135,10 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
             assertEq(controllerConfig.wires[i].callSelector,     arbitrumBeaconConfig.wires[i].callSelector);
             assertEq(controllerConfig.wires[i].delegateSelector, arbitrumBeaconConfig.wires[i].delegateSelector);
         }
+    }
+
+    function test_controllerEvents() external {
+        _assertControllerEvents();
     }
 
     /**********************************************************************************************/
