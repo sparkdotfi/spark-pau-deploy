@@ -1,0 +1,12 @@
+{
+    "_info": "Spark Arbitrum Staging Parallel PAU deployment.",
+  
+    "chainId": 42161,
+    "deployer": "0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f",
+    "almProxy": "0xAF6B11Ab939d96AFAa9e63c679C1594F9Dc03dB9",
+
+    "_cctpFacet": "Values to deploy the CCTP facet.",
+    "cctpTokenMessenger": "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
+    "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+  }
+  

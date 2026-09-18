@@ -13,7 +13,7 @@ import { IAdministeredAgent } from "../../../lib/pau-administered-agent/src/inte
 
 import { Ethereum } from "../../../lib/spark-address-registry/src/Ethereum.sol";
 
-import { PostDeployTestBase } from "../../PostDeployTestBase.t.sol";
+import { PostDeployTestBaseFull } from "../PostDeployTestBaseFull.t.sol";
 
 interface IERC4626Like {
 
@@ -21,7 +21,7 @@ interface IERC4626Like {
 
 }
 
-abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
+abstract contract MainnetPostDeployTestsBase is PostDeployTestBaseFull {
 
     bytes32 internal constant CCTP_FACET_ID    = "CCTP_FACET";
     bytes32 internal constant ERC4626_FACET_ID = "ERC4626_FACET";
@@ -447,7 +447,7 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
         ERC4626_USDC_MAX_AMOUNT = 10e6;
         ERC4626_USDC_SLOPE      = uint256(100e6) / 1 hours;
 
-        _setUpAddresses(vm.readFile("deployments/mainnet-staging.json"));
+        _setUpAddresses(vm.readFile("deployments/full-pau/mainnet-staging.json"));
     }
 
     function _getBlock() internal override pure returns (uint256) {
@@ -551,7 +551,7 @@ contract MainnetPostDeployTestsProduction is MainnetPostDeployTestsBase {
         ERC4626_USDC_MAX_AMOUNT = type(uint256).max;
         ERC4626_USDC_SLOPE      = 0;
 
-        _setUpAddresses(vm.readFile("deployments/mainnet-production.json"));
+        _setUpAddresses(vm.readFile("deployments/full-pau/mainnet-production.json"));
     }
 
     function _getBlock() internal override pure returns (uint256) {
