@@ -43,14 +43,10 @@ abstract contract DeploySparkPAUParallelBase is Script {
 
         require(block.chainid == config.readUint(".chainId"), "DeploySparkPAUParallelBase/Invalid chain ID");
 
-        admin    = config.readAddress(".admin");
+        deployer = config.readAddress(".deployer");
         almProxy = config.readAddress(".almProxy");
 
         vm.startBroadcast();
-
-        // The broadcaster is the temporary admin of every deployed contract until the configure
-        // script hands all roles over to `admin` and revokes itself.
-        address deployer = msg.sender;
 
         // Step 1: Deploy Beacon, PAUFactory and AdministeredAgentFactory.
 
