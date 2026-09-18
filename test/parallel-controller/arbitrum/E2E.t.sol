@@ -91,7 +91,7 @@ abstract contract ArbitrumParallelE2ETestsBase is ArbitrumPostDeployTestsBase {
         ethereumDomainId   = 0;
 
         mainnet  = getChain("mainnet").createSelectFork(26005798); // September 18, 2026
-        arbitrum = getChain("arbitrum_one").createSelectFork(70982550);  // September 18, 2026
+        arbitrum = Domain({ chain: getChain("arbitrum_one"), forkId: arbitrumFork });
 
         bridge = CCTPv2BridgeTesting.init(Bridge({
             bridgeType                     : BridgeType.CCTP_V2,
