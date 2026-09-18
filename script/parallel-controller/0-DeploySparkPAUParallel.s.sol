@@ -48,25 +48,30 @@ abstract contract DeploySparkPAUParallelBase is Script {
 
         vm.startBroadcast();
 
+        // The broadcaster is the temporary admin of every deployed contract until the configure
+        // script hands all roles over to `admin` and revokes itself.
+        address deployer = msg.sender;
+
         // Step 1: Deploy Beacon, PAUFactory and AdministeredAgentFactory.
 
-        beacon                   = new Beacon(admin);
+        beacon                   = new Beacon(deployer);
         pauFactory               = new PAUFactory(address(beacon));
         administeredAgentFactory = new AdministeredAgentFactory();
 
-        // Step-2: Deploy facets
+        // Step 2: Deploy facets.
 
         _deployFacets();
 
         // Step 3: Deploy AccessControls, RateLimits and Controller.
+        //         deployer is the initial admin; configure script will transfer to admin.
 
-        address accessControls = pauFactory.deployAccessControls(admin);
-        address rateLimits     = pauFactory.deployRateLimits(admin);
+        address accessControls = pauFactory.deployAccessControls(deployer);
+        address rateLimits     = pauFactory.deployRateLimits(deployer);
         address controller     = pauFactory.deployController(accessControls, almProxy, rateLimits);
 
         // Step 4: Deploy AdministeredAgent contract.
 
-        address administeredAgent = administeredAgentFactory.deploy(admin);
+        address administeredAgent = administeredAgentFactory.deploy(deployer);
 
         vm.stopBroadcast();
 
