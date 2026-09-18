@@ -88,6 +88,9 @@ abstract contract ConfigureSparkPAUParallelBase is Script {
 
         admin    = config.readAddress(".admin");
         deployer = config.readAddress(".deployer");
+        relayer  = config.readAddress(".relayer");
+        grantor  = config.readAddress(".grantor");
+        freezer  = config.readAddress(".freezer");
 
         require(admin      != deployer, "ConfigureSparkPAUParallelBase/admin-is-deployer");
         require(msg.sender == deployer, "ConfigureSparkPAUParallelBase/sender-not-deployer");
