@@ -58,25 +58,26 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
         assertEq(integrations[0].id,  CCTP_FACET_ID);
 
         // Facet address and wire count match what BeaconConfig.setCCTPIntegration wrote.
-        IEI.Config memory config = beacon.getConfig(CCTP_FACET_ID);
+        assertEq(integrations[0].config.facet,        cctpFacet);
+        assertEq(integrations[0].config.wires.length, 10);
 
-        assertEq(config.facet,        cctpFacet);
-        assertEq(config.wires.length, 10);
+        vm.createSelectFork(getChain("mainnet").rpcUrl, 26005219); // September 18, 2026
 
-        // September 18, 2026
-        vm.createSelectFork(getChain("mainnet").rpcUrl, 26005219);
+        for (uint256 i = 0; i < integrations.length; ++i) {
+            IEI.Config memory arbitrumBeaconConfig = integrations[i].config;
+            IEI.Config memory skyBeaconConfig      = skyMainnetBeacon.getConfig(integrations[i].id);
 
-        IEI.Config memory skyMainnetBeaconConfig = skyMainnetBeacon.getConfig(CCTP_FACET_ID);
+            // Facets are per-chain deployments, so only the wiring is compared across beacons.
+            assertEq(arbitrumBeaconConfig.wires.length, skyBeaconConfig.wires.length);
 
-        assertEq(skyMainnetBeaconConfig.wires.length, config.wires.length);
+            // Sky wires the same pairs in a different order, so each wire is matched through Sky's
+            // dispatch rather than by position.
+            for (uint256 j; j < arbitrumBeaconConfig.wires.length; ++j) {
+                IEI.Dispatch memory skyDispatch = skyMainnetBeacon.getDispatch(arbitrumBeaconConfig.wires[j].callSelector);
 
-        // Both beacons wire the same call selectors to the same delegate selectors, but not in
-        // the same order, so resolve each call selector instead of comparing wires index by index.
-        for (uint256 i; i < config.wires.length; i++) {
-            assertEq(
-                skyMainnetBeacon.getDispatch(config.wires[i].callSelector).delegateSelector,
-                config.wires[i].delegateSelector
-            );
+                assertEq(skyDispatch.facet,            skyBeaconConfig.facet);
+                assertEq(skyDispatch.delegateSelector, arbitrumBeaconConfig.wires[j].delegateSelector);
+            }
         }
 
         vm.selectFork(arbitrumFork);
