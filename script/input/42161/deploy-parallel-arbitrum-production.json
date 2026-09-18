@@ -1,0 +1,14 @@
+{
+  "_info": "Spark Arbitrum Production parallel controller deployment. Deploys Beacon, CCTPFacet, factories and a controller stack against the EXISTING ALMProxy. The deployer is admin of everything until the configure step.",
+
+  "chainId": 42161,
+
+  "deployer": "0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f",
+
+  "_almProxy": "Existing Spark Arbitrum ALMProxy (spark-address-registry Arbitrum.ALM_PROXY). Not modified by these scripts.",
+  "almProxy": "0x92afd6F2385a90e44da3a8B60fe36f6cBe1D8709",
+
+  "_cctpFacet": "CCTPFacet constructor arguments: Circle TokenMessengerV2 and native USDC on Arbitrum.",
+  "cctpTokenMessenger": "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
+  "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+}

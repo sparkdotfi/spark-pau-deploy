@@ -2,14 +2,20 @@
 #
 # Prerequisites:
 #   - ETH_FROM: deployer address
-#   - MAINNET_RPC_URL, XLAYER_RPC_URL, RH_RPC_URL: chain RPC URLs
+#   - MAINNET_RPC_URL, XLAYER_RPC_URL, RH_RPC_URL, ARBITRUM_ONE_RPC_URL: chain RPC URLs
 #   - MAINNET_API_KEY: Etherscan key, used by --verify on mainnet
+#   - ARBISCAN_API_KEY: Arbiscan key, used by --verify on Arbitrum
 #   - ETHERSCAN_API_KEY: used by the post-deploy event tests
 #   - foundry keystore account named "deployer" (cast wallet import deployer --interactive)
 #
 # Deployment variants:
-#   full: the default PAU assembler deploys the whole stack (ALMProxy, AccessControls, RateLimits,
-#         Controller, AdministeredAgent) in a single call and wires the integrations
+#   full:     the default PAU assembler deploys the whole stack (ALMProxy, AccessControls,
+#             RateLimits, Controller, AdministeredAgent) in a single call and wires the integrations
+#   parallel: a second controller next to an EXISTING ALMProxy on a chain with no Diamond PAU
+#             infrastructure. Deploys Beacon + CCTPFacet (wired), PAUFactory,
+#             AdministeredAgentFactory, then AccessControls, RateLimits, Controller and one
+#             AdministeredAgent. The ALMProxy is never touched: the CONTROLLER grant and the rate
+#             limits are governance spell actions. See src/ParallelPAULib.sol.
 #
 # Deployment order (per chain + env):
 #   1. deploy    — calls DefaultPAUAssembler.deploy with the integration ids, admin config and
@@ -21,8 +27,20 @@
 #                  rate), then grants the admin roles to `admin` and revokes them from `deployer`.
 #                  Input: script/input/{chainId}/config-pau-with-assembler-{chain}-{env}.json
 #
-# Both scripts are selected by CHAIN and ENV. Every value they write is read from the input files;
-# keys prefixed with an underscore in those files are documentation only.
+# Parallel deployment order (per chain + env):
+#   1. deploy    — ParallelPAULib.deploy as `deployer`, who is admin of everything it deploys.
+#                  Input:  script/input/{chainId}/deploy-parallel-{chain}-{env}.json
+#                  Output: script/output/{chainId}/deploy-parallel-{chain}-{env}-{ts}.json
+#   2. configure — agent actors/grantor/revoker, ALLOCATOR_ROLE, RateLimits CONTROLLER,
+#                  updateIntegrations([CCTP_FACET]), CCTP domain parameters, then hands every admin
+#                  role to `admin` and revokes `deployer`. Paste controller + administeredAgent from
+#                  the deploy output into the config input first.
+#                  Input: script/input/{chainId}/config-parallel-{chain}-{env}.json
+#   3. Fill deployments/{chain}-production.json and run test-postdeploy-{chain}-parallel.
+#
+# Full scripts are selected by CHAIN and ENV; parallel scripts are one contract per chain and are
+# selected by ENV only. Every value they write is read from the input files; keys prefixed with an
+# underscore in those files are documentation only.
 
 # --------------------------------------------------------------------------------------------------
 # Build & Test                                                                                     #
@@ -47,7 +65,7 @@ clean:
 # Mainnet asserts state and events. X Layer asserts state only, the Etherscan v2 log endpoint does
 # not cover chain 196.
 
-test-postdeploy: test-postdeploy-mainnet-full test-postdeploy-xlayer-full
+test-postdeploy: test-postdeploy-mainnet-full test-postdeploy-xlayer-full test-postdeploy-arbitrum-parallel
 
 test-postdeploy-mainnet-full:
 	forge test --match-path "test/full-pau/mainnet/PostDeployTests.t.sol" -vvv
@@ -60,6 +78,18 @@ test-postdeploy-xlayer-full:
 
 test-postdeploy-xlayer-full-staging:
 	forge test --match-contract "XLayerPostDeployTestsStaging" -vvv
+
+# Arbitrum parallel controller. Skips while deployments/arbitrum-production.json has a zero
+# controller, except the wiring diff against the Spark Ethereum Beacon, which always runs.
+
+test-postdeploy-arbitrum-parallel:
+	forge test --match-path "test/parallel-controller/arbitrum/PostDeployTests.t.sol" -vvv
+
+# Fork rehearsal of the exact production code path (deploy + configure + simulated spell + CCTP
+# burn). Run this before deploy-arbitrum-parallel-production.
+
+test-e2e-arbitrum-parallel:
+	forge test --match-path "test/parallel-controller/arbitrum/E2E.t.sol" -vvv
 
 # --------------------------------------------------------------------------------------------------
 # Deploy: ALMProxy + AccessControls + RateLimits + Controller + AdministeredAgent                  #
@@ -91,6 +121,25 @@ deploy-xlayer-full-production:
 		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(XLAYER_RPC_URL)
 
 # --------------------------------------------------------------------------------------------------
+# Deploy (parallel): Beacon + CCTPFacet + factories + AccessControls + RateLimits + Controller     #
+#                    + AdministeredAgent, against the existing ALMProxy                            #
+# --------------------------------------------------------------------------------------------------
+
+# Arbitrum
+
+deploy-arbitrum-parallel-production:
+	ENV=production forge script \
+		script/parallel-controller/DeploySparkPAUParallel.s.sol:DeploySparkPAUParallelArbitrum \
+		--sender $(ETH_FROM) --account deployer --broadcast --verify --rpc-url $(ARBITRUM_ONE_RPC_URL)
+
+# Dry run: same script, same input, no broadcast. Writes a throwaway output file.
+
+simulate-deploy-arbitrum-parallel-production:
+	ENV=production forge script \
+		script/parallel-controller/DeploySparkPAUParallel.s.sol:DeploySparkPAUParallelArbitrum \
+		--sender $(ETH_FROM) --rpc-url $(ARBITRUM_ONE_RPC_URL)
+
+# --------------------------------------------------------------------------------------------------
 # Configure: Controller + AccessControls + AdministeredAgent + RateLimits                          #
 # --------------------------------------------------------------------------------------------------
 # Onboards the facets and hands the stack from the deployer to `admin`. Needs the deployed
@@ -108,9 +157,25 @@ configure-xlayer-full-staging:
 		script/full-pau/1-ConfigureSparkPAUFull.s.sol:ConfigureSparkPAUFullXLayer \
 		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(XLAYER_RPC_URL)
 
+# Parallel: production IS configured by the deployer, because nothing here touches the ALMProxy.
+# The spell only grants CONTROLLER and sets rate limits.
+
+configure-arbitrum-parallel-production:
+	ENV=production forge script \
+		script/parallel-controller/ConfigureSparkPAUParallel.s.sol:ConfigureSparkPAUParallelArbitrum \
+		--sender $(ETH_FROM) --account deployer --broadcast --rpc-url $(ARBITRUM_ONE_RPC_URL)
+
+simulate-configure-arbitrum-parallel-production:
+	ENV=production forge script \
+		script/parallel-controller/ConfigureSparkPAUParallel.s.sol:ConfigureSparkPAUParallelArbitrum \
+		--sender $(ETH_FROM) --rpc-url $(ARBITRUM_ONE_RPC_URL)
+
 .PHONY: build test clean \
 	test-postdeploy test-postdeploy-mainnet-full test-postdeploy-mainnet-full-staging \
 	test-postdeploy-xlayer-full test-postdeploy-xlayer-full-staging \
+	test-postdeploy-arbitrum-parallel test-e2e-arbitrum-parallel \
 	deploy-mainnet-full-staging deploy-mainnet-full-production \
 	deploy-xlayer-full-staging deploy-xlayer-full-production \
-	configure-mainnet-full-staging configure-xlayer-full-staging
+	deploy-arbitrum-parallel-production simulate-deploy-arbitrum-parallel-production \
+	configure-mainnet-full-staging configure-xlayer-full-staging \
+	configure-arbitrum-parallel-production simulate-configure-arbitrum-parallel-production
