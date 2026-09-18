@@ -55,7 +55,7 @@ abstract contract ArbitrumParallelE2ETestsBase is ArbitrumPostDeployTestsBase {
         deployer = DEPLOYER;
         relayer  = Arbitrum.ALM_RELAYER_MULTISIG;
         freezer  = Arbitrum.ALM_FREEZER_MULTISIG;
-        grantor  = Ethereum.PAU_GRANTOR_MULTISIG;
+        grantor  = 0x4B61A0E48dd1e300f64090C60F414c1aC6CbC514; // TODO add in registry
 
         almProxy           = IALMProxy(Arbitrum.ALM_PROXY);
         legacyController   = Arbitrum.ALM_CONTROLLER;
@@ -334,6 +334,10 @@ contract ArbitrumParallelE2ETestLive is ArbitrumParallelE2ETestsBase {
         rateLimits        = IRateLimits(0x4824C4336a1a11979068A544958dCe5D49B42752);
         controller        = IControllerFull(0x04ACB9e9bbd64A425677edC535D6B30cfD74E42f);
         administeredAgent = IAdministeredAgent(0x0745aae633E8318a063D383791bCc0d8C82F46C6);
+    }
+
+    function _getBlock() internal override pure returns (uint256) {
+        return 506468410;
     }
 
 }

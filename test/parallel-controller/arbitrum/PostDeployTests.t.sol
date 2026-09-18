@@ -63,18 +63,18 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
 
         // Check Arbitrum Beacon matches Mainnet Beacon
 
-        IEI.Config memory mainnetBeaconConfig  = mainnetBeacon.getConfig(CCTP_FACET_ID);
-        IEI.Config memory arbitrumBeaconConfig = beacon.getConfig(CCTP_FACET_ID);
+        IEI.Config memory skyMainnetBeaconConfig = skyMainnetBeacon.getConfig(CCTP_FACET_ID);
+        IEI.Config memory arbitrumBeaconConfig   = beacon.getConfig(CCTP_FACET_ID);
 
-        assertEq(mainnetBeaconConfig.facet,        cctpFacet);
-        assertEq(mainnetBeaconConfig.wires.length, 10);
+        assertEq(skyMainnetBeaconConfig.facet,        cctpFacet);
+        assertEq(skyMainnetBeaconConfig.wires.length, 10);
 
-        assertEq(arbitrumBeaconConfig.facet,        mainnetBeaconConfig.facet);
-        assertEq(arbitrumBeaconConfig.wires.length, mainnetBeaconConfig.wires.length);
+        assertEq(arbitrumBeaconConfig.facet,        skyMainnetBeaconConfig.facet);
+        assertEq(arbitrumBeaconConfig.wires.length, skyMainnetBeaconConfig.wires.length);
 
         for (uint256 i; i < arbitrumBeaconConfig.wires.length; i++) {
-            assertEq(arbitrumBeaconConfig.wires[i].callSelector,     mainnetBeaconConfig.wires[i].callSelector);
-            assertEq(arbitrumBeaconConfig.wires[i].delegateSelector, mainnetBeaconConfig.wires[i].delegateSelector);
+            assertEq(arbitrumBeaconConfig.wires[i].callSelector,     skyMainnetBeaconConfig.wires[i].callSelector);
+            assertEq(arbitrumBeaconConfig.wires[i].delegateSelector, skyMainnetBeaconConfig.wires[i].delegateSelector);
         }
     }
 
@@ -331,7 +331,7 @@ contract ArbitrumPostDeployTestsProduction is ArbitrumPostDeployTestsBase {
     function setUp() public override {
         super.setUp();
 
-        string memory json = vm.readFile("deployments/parallel-controller/arbitrum-staging.json");
+        string memory json = vm.readFile("deployments/parallel-controller/arbitrum-production.json");
 
         _setUpAddresses(json);
 
@@ -341,7 +341,7 @@ contract ArbitrumPostDeployTestsProduction is ArbitrumPostDeployTestsBase {
     }
 
     function _getBlock() internal override pure returns (uint256) {
-        return 0;
+        return 506468410;
     }
 
     function _assertFacetConstructors() internal view override {

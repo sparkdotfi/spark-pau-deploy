@@ -1,0 +1,23 @@
+{
+    "skyMainnetBeacon": "0x829dC2b7E94B1954F0764E573f2E0d45Afa28199",
+    "legacyController": "0xC40611AC4Fff8572Dc5F02A238176edCF15Ea7ba",
+
+    "accessControls": "0x8386f819860D54B1180539Ff4852E4CAECef8A1D",
+    "administeredAgent": "0x0745aae633E8318a063D383791bCc0d8C82F46C6",
+    "controller": "0x04ACB9e9bbd64A425677edC535D6B30cfD74E42f",
+    "proxy": "0x92afd6F2385a90e44da3a8B60fe36f6cBe1D8709",
+    "rateLimits": "0x4824C4336a1a11979068A544958dCe5D49B42752",
+    "relayer": "0x8a25A24EDE9482C4Fc0738F99611BE58F1c839AB",
+    "freezer": "0x90D8c80C028B4C09C0d8dcAab9bbB057F0513431",
+    "grantor": "0x4B61A0E48dd1e300f64090C60F414c1aC6CbC514",
+    "admin": "0x65d946e533748A998B1f0E430803e39A6388f7a1",
+    "beacon": "0x86036CE5d2f792367C0AA43164e688d13c5A60A8",
+    "deployer": "0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f",
+    "agentFactory": "0xCBA0C0a2a0B6Bb11233ec4EA85C5bFfea33e724d",
+    "pauFactory": "0x3968a022D955Bbb7927cc011A48601B65a33F346",
+
+    "_cctpFacet": "Values to test cctp facet construction.",
+    "cctpFacet": "0xeCCA0D296Cb133081d41E9772B60D57F5fd2798E",
+    "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    "cctpTokenMessenger": "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d"
+}

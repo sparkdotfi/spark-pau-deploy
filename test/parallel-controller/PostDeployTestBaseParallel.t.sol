@@ -12,14 +12,14 @@ abstract contract PostDeployTestBaseParallel is PostDeployTestBase {
 
     using stdJson for string;
 
-    IBeacon internal mainnetBeacon;
+    IBeacon internal skyMainnetBeacon;
 
     address internal legacyController;
 
     function _setUpAddresses(string memory json) internal override {
         super._setUpAddresses(json);
 
-        mainnetBeacon    = IBeacon(json.readAddress(".mainnetBeacon"));
+        skyMainnetBeacon = IBeacon(json.readAddress(".skyMainnetBeacon"));
         legacyController = json.readAddress(".legacyController");
     }
 
