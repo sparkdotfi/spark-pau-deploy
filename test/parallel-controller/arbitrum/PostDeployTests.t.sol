@@ -45,9 +45,8 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
 
     // Deployed beacon
 
-    function test_beaconStateAndEvents() external {
+    function test_beaconState() external view {
         _assertBeaconState();
-        _assertBeaconEvents();
 
         // Exactly one integration: CCTP_FACET.
         IEI.Integration[] memory integrations = beacon.integrations();
@@ -76,6 +75,10 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
             assertEq(arbitrumBeaconConfig.wires[i].callSelector,     skyMainnetBeaconConfig.wires[i].callSelector);
             assertEq(arbitrumBeaconConfig.wires[i].delegateSelector, skyMainnetBeaconConfig.wires[i].delegateSelector);
         }
+    }
+
+    function test_beaconEvents() external virtual {
+        _assertBeaconEvents();
     }
 
     // Deployed PAU stack
@@ -148,7 +151,7 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
     function _assertBeaconEvents() internal {
         VmSafe.EthGetLogs[] memory logs = _getEvents(block.chainid, address(beacon), "");
 
-        assertEq(logs.length, 2);
+        assertEq(logs.length, 4);
 
         // Grant deployer DEFAULT_ADMIN_ROLE
         _assertRoleGrantedEvent({
@@ -284,7 +287,7 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
         _assertRoleGrantedEvent({
             log     : logs[1],
             role    : DEFAULT_ADMIN_ROLE,
-            account : deployer,
+            account : admin,
             sender  : deployer
         });
 
@@ -341,7 +344,7 @@ contract ArbitrumPostDeployTestsProduction is ArbitrumPostDeployTestsBase {
     }
 
     function _getBlock() internal override pure returns (uint256) {
-        return 506468410;
+        return 506472875;
     }
 
     function _assertFacetConstructors() internal view override {

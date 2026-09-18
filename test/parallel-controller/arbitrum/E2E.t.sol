@@ -229,6 +229,7 @@ contract ArbitrumParallelE2ETestLocal is ArbitrumParallelE2ETestsBase {
 
     // Not running events tests in Local E2E tests.
 
+    function test_beaconEvents() external override {}
     function test_administeredAgentEvents() external override {}
     function test_accessControlsEvents() external override {}
     function test_rateLimitsEvents() external override {}
@@ -337,7 +338,7 @@ contract ArbitrumParallelE2ETestLive is ArbitrumParallelE2ETestsBase {
     }
 
     function _getBlock() internal override pure returns (uint256) {
-        return 506468410;
+        return 506472875;
     }
 
 }
