@@ -4,6 +4,7 @@ pragma solidity ^0.8.34;
 import { stdJson } from "../../../lib/forge-std/src/StdJson.sol";
 import { VmSafe }  from "../../../lib/forge-std/src/Vm.sol";
 
+import { IBeacon }                        from "../../../lib/diamond-pau/src/interfaces/IBeacon.sol";
 import { IEnumerableIntegrations as IEI } from "../../../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
 
 import { ICCTPFacet } from "../../../lib/diamond-pau/src/facets/cctp/ICCTPFacet.sol";
@@ -21,10 +22,12 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
     address internal usdc;
     address internal cctpTokenMessenger;
 
+    uint256 internal arbitrumFork;
+
     function setUp() public override virtual {
         super.setUp();
 
-        vm.createSelectFork(getChain("arbitrum_one").rpcUrl, _getBlock());
+        arbitrumFork = vm.createSelectFork(getChain("arbitrum_one").rpcUrl, _getBlock());
     }
 
     function _getBlock() internal virtual pure returns (uint256) {
@@ -45,7 +48,7 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
 
     // Deployed beacon
 
-    function test_beaconState() external view {
+    function test_beaconState() external {
         _assertBeaconState();
 
         // Exactly one integration: CCTP_FACET.
@@ -60,21 +63,23 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
         assertEq(config.facet,        cctpFacet);
         assertEq(config.wires.length, 10);
 
-        // Check Arbitrum Beacon matches Mainnet Beacon
+        // September 18, 2026
+        vm.createSelectFork(getChain("mainnet").rpcUrl, 26005219);
 
         IEI.Config memory skyMainnetBeaconConfig = skyMainnetBeacon.getConfig(CCTP_FACET_ID);
-        IEI.Config memory arbitrumBeaconConfig   = beacon.getConfig(CCTP_FACET_ID);
 
-        assertEq(skyMainnetBeaconConfig.facet,        cctpFacet);
-        assertEq(skyMainnetBeaconConfig.wires.length, 10);
+        assertEq(skyMainnetBeaconConfig.wires.length, config.wires.length);
 
-        assertEq(arbitrumBeaconConfig.facet,        skyMainnetBeaconConfig.facet);
-        assertEq(arbitrumBeaconConfig.wires.length, skyMainnetBeaconConfig.wires.length);
-
-        for (uint256 i; i < arbitrumBeaconConfig.wires.length; i++) {
-            assertEq(arbitrumBeaconConfig.wires[i].callSelector,     skyMainnetBeaconConfig.wires[i].callSelector);
-            assertEq(arbitrumBeaconConfig.wires[i].delegateSelector, skyMainnetBeaconConfig.wires[i].delegateSelector);
+        // Both beacons wire the same call selectors to the same delegate selectors, but not in
+        // the same order, so resolve each call selector instead of comparing wires index by index.
+        for (uint256 i; i < config.wires.length; i++) {
+            assertEq(
+                skyMainnetBeacon.getDispatch(config.wires[i].callSelector).delegateSelector,
+                config.wires[i].delegateSelector
+            );
         }
+
+        vm.selectFork(arbitrumFork);
     }
 
     function test_beaconEvents() external virtual {

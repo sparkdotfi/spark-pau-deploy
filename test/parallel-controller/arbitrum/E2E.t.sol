@@ -22,6 +22,8 @@ import { IAdministeredAgentFactory } from "../../../lib/pau-administered-agent/s
 import { Arbitrum } from "../../../lib/spark-address-registry/src/Arbitrum.sol";
 import { Ethereum } from "../../../lib/spark-address-registry/src/Ethereum.sol";
 
+import { Ethereum as SkyEthereum } from "../../../lib/sky-pau-registry/src/Ethereum.sol";
+
 import { BeaconConfig }    from "../../../src/BeaconConfig.sol";
 import { InitParallelPAU } from "../../../src/InitParallelPAU.sol";
 
@@ -49,8 +51,6 @@ abstract contract ArbitrumParallelE2ETestsBase is ArbitrumPostDeployTestsBase {
     function setUp() public virtual override {
         super.setUp();
 
-        vm.createSelectFork(getChain("arbitrum_one").rpcUrl);
-
         admin    = Arbitrum.SPARK_EXECUTOR;
         deployer = DEPLOYER;
         relayer  = Arbitrum.ALM_RELAYER_MULTISIG;
@@ -58,6 +58,7 @@ abstract contract ArbitrumParallelE2ETestsBase is ArbitrumPostDeployTestsBase {
         grantor  = Arbitrum.PAU_GRANTOR_MULTISIG;
 
         almProxy           = IALMProxy(Arbitrum.ALM_PROXY);
+        skyMainnetBeacon   = IBeacon(SkyEthereum.BEACON);
         legacyController   = Arbitrum.ALM_CONTROLLER;
         cctpTokenMessenger = Arbitrum.CCTP_TOKEN_MESSENGER;
         usdc               = Arbitrum.USDC;
@@ -225,6 +226,10 @@ contract ArbitrumParallelE2ETestLocal is ArbitrumParallelE2ETestsBase {
         _runDeployScript();
         _runConfigureScript();
         vm.stopPrank();
+    }
+
+    function _getBlock() internal override pure returns (uint256) {
+        return 506472875;
     }
 
     // Not running events tests in Local E2E tests.
