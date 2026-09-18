@@ -55,7 +55,7 @@ abstract contract ArbitrumParallelE2ETestsBase is ArbitrumPostDeployTestsBase {
         deployer = DEPLOYER;
         relayer  = Arbitrum.ALM_RELAYER_MULTISIG;
         freezer  = Arbitrum.ALM_FREEZER_MULTISIG;
-        grantor  = 0x4B61A0E48dd1e300f64090C60F414c1aC6CbC514; // TODO add in registry
+        grantor  = Arbitrum.PAU_GRANTOR_MULTISIG;
 
         almProxy           = IALMProxy(Arbitrum.ALM_PROXY);
         legacyController   = Arbitrum.ALM_CONTROLLER;
@@ -326,15 +326,15 @@ contract ArbitrumParallelE2ETestLive is ArbitrumParallelE2ETestsBase {
     function setUp() public override {
         super.setUp();
 
-        beacon       = IBeacon(0x86036CE5d2f792367C0AA43164e688d13c5A60A8);
-        pauFactory   = IPAUFactory(0x3968a022D955Bbb7927cc011A48601B65a33F346);
-        agentFactory = IAdministeredAgentFactory(0xCBA0C0a2a0B6Bb11233ec4EA85C5bFfea33e724d);
+        beacon       = IBeacon(Arbitrum.SPARK_BEACON);
+        pauFactory   = IPAUFactory(Arbitrum.SPARK_PAU_FACTORY);
+        agentFactory = IAdministeredAgentFactory(Arbitrum.SPARK_ADMINISTERED_AGENT_FACTORY);
 
-        cctpFacet         = 0xeCCA0D296Cb133081d41E9772B60D57F5fd2798E;
-        accessControls    = IAccessControls(0x8386f819860D54B1180539Ff4852E4CAECef8A1D);
-        rateLimits        = IRateLimits(0x4824C4336a1a11979068A544958dCe5D49B42752);
-        controller        = IControllerFull(0x04ACB9e9bbd64A425677edC535D6B30cfD74E42f);
-        administeredAgent = IAdministeredAgent(0x0745aae633E8318a063D383791bCc0d8C82F46C6);
+        cctpFacet         = Arbitrum.CCTP_FACET;
+        accessControls    = IAccessControls(Arbitrum.PAU_ACCESS_CONTROLS);
+        rateLimits        = IRateLimits(Arbitrum.PAU_RATELIMITS);
+        controller        = IControllerFull(Arbitrum.PAU_CONTROLLER);
+        administeredAgent = IAdministeredAgent(Arbitrum.PAU_ADMINISTERED_AGENT);
     }
 
     function _getBlock() internal override pure returns (uint256) {
