@@ -27,22 +27,6 @@ import { InitParallelPAU } from "../../../src/InitParallelPAU.sol";
 
 import { ArbitrumPostDeployTestsBase } from "./PostDeployTests.t.sol";
 
-interface IACLike {
-
-    function DEFAULT_ADMIN_ROLE() external pure returns (bytes32);
-
-    function grantRole(bytes32 role, address account) external;
-
-    function revokeRole(bytes32 role, address account) external;
-
-}
-
-interface IAdminLike {
-
-    function removeAdmin(address account) external;
-
-}
-
 /**
  * @notice Runs the exact production code path (the two parallel-controller scripts) on an
  *         Arbitrum fork as the deployer, asserts the same end state the post-deploy test
@@ -55,26 +39,14 @@ interface IAdminLike {
  *                               then _transferAdminRoles (grants beacon to admin, revokes deployer
  *                               from Beacon/AccessControls/RateLimits/AdministeredAgent).
  */
-contract ArbitrumParallelE2ETest is ArbitrumPostDeployTestsBase {
+abstract contract ArbitrumParallelE2ETestsBase is ArbitrumPostDeployTestsBase {
 
-    // Deployer EOA matches the staging deploy config.
     address internal constant DEPLOYER = 0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f;
-
-    // Intermediary storage so helpers can pass results between setUp phases.
-    address internal cctpFacetAddr;
-    address internal accessControlsAddr;
-    address internal rateLimitsAddr;
-    address internal controllerAddr;
-    address internal administeredAgentAddr;
-
-    Beacon                   internal beaconContract;
-    PAUFactory               internal pauFactoryContract;
-    AdministeredAgentFactory internal agentFactoryContract;
 
     address internal ethereumAlmProxy;
     uint32  internal ethereumDomainId;
 
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
 
         vm.createSelectFork(getChain("arbitrum_one").rpcUrl);
@@ -85,110 +57,12 @@ contract ArbitrumParallelE2ETest is ArbitrumPostDeployTestsBase {
         freezer  = Arbitrum.ALM_FREEZER_MULTISIG;
         grantor  = Ethereum.PAU_GRANTOR_MULTISIG;
 
+        almProxy           = IALMProxy(Arbitrum.ALM_PROXY);
         legacyController   = Arbitrum.ALM_CONTROLLER;
         cctpTokenMessenger = Arbitrum.CCTP_TOKEN_MESSENGER;
         usdc               = Arbitrum.USDC;
         ethereumAlmProxy   = Ethereum.ALM_PROXY;
         ethereumDomainId   = 0;
-
-        vm.startPrank(deployer);
-        _runDeployScript();
-        _runConfigureScript();
-        vm.stopPrank();
-
-        // Bind the shared test interfaces to the fresh deployment.
-        agentFactory      = IAdministeredAgentFactory(address(agentFactoryContract));
-        beacon            = IBeacon(address(beaconContract));
-        pauFactory        = IPAUFactory(address(pauFactoryContract));
-
-        accessControls    = IAccessControls(accessControlsAddr);
-        administeredAgent = IAdministeredAgent(administeredAgentAddr);
-        almProxy          = IALMProxy(Arbitrum.ALM_PROXY);
-        controller        = IControllerFull(controllerAddr);
-        rateLimits        = IRateLimits(rateLimitsAddr);
-
-        cctpFacet = cctpFacetAddr;
-    }
-
-    /**********************************************************************************************/
-    /*** Script helpers                                                                         ***/
-    /**********************************************************************************************/
-
-    /// @dev Mirrors DeploySparkPAUParallelBase.run() + DeploySparkPAUParallelArbitrum._deployFacets().
-    function _runDeployScript() internal {
-        // deployer is the temporary initial admin of all four contracts;
-        // configure script hands everything over to admin and revokes deployer.
-        beaconContract       = new Beacon(deployer);
-        pauFactoryContract   = new PAUFactory(address(beaconContract));
-        agentFactoryContract = new AdministeredAgentFactory();
-
-        cctpFacetAddr = address(new CCTPFacet({
-            cctp_ : cctpTokenMessenger,
-            usdc_ : usdc
-        }));
-
-        accessControlsAddr    = pauFactoryContract.deployAccessControls(deployer);
-        rateLimitsAddr        = pauFactoryContract.deployRateLimits(deployer);
-        controllerAddr        = pauFactoryContract.deployController(accessControlsAddr, Arbitrum.ALM_PROXY, rateLimitsAddr);
-        administeredAgentAddr = agentFactoryContract.deploy(deployer);
-    }
-
-    /// @dev Mirrors ConfigureSparkPAUParallelBase.run() with ArbitrumStaging overrides.
-    function _runConfigureScript() internal {
-        // Step 1: Wire CCTP on Beacon.
-        BeaconConfig.setCCTPIntegration(address(beaconContract), cctpFacetAddr);
-
-        // Step 2: Build InitParallelPAU params (mirrors _getAdminConfig + _getAgentConfigs).
-        address[] memory accessControlAdmins = new address[](1);
-        accessControlAdmins[0] = admin;
-
-        address[] memory rateLimitsAdmins = new address[](1);
-        rateLimitsAdmins[0] = admin;
-
-        InitParallelPAU.AdminConfig memory adminConfig = InitParallelPAU.AdminConfig({
-            accessControlAdmins : accessControlAdmins,
-            rateLimitsAdmins    : rateLimitsAdmins
-        });
-
-        InitParallelPAU.AdministeredAgentConfig[] memory agentConfigs =
-            _buildAgentConfigs();
-
-        bytes32[] memory integrationIds = new bytes32[](1);
-        integrationIds[0] = BeaconConfig.CCTP_INTEGRATION;
-
-        InitParallelPAU.initParallelPAU(controllerAddr, integrationIds, adminConfig, agentConfigs);
-
-        // Step 3: _transferAdminRoles (mirrors ConfigureSparkPAUParallelBase._transferAdminRoles).
-        IACLike(address(beaconContract)).grantRole(DEFAULT_ADMIN_ROLE, admin);
-        IACLike(address(beaconContract)).revokeRole(DEFAULT_ADMIN_ROLE, deployer);
-        IACLike(accessControlsAddr).revokeRole(DEFAULT_ADMIN_ROLE, deployer);
-        IACLike(rateLimitsAddr).revokeRole(DEFAULT_ADMIN_ROLE, deployer);
-        IAdminLike(administeredAgentAddr).removeAdmin(deployer);
-    }
-
-    function _buildAgentConfigs()
-        internal
-        view
-        returns (InitParallelPAU.AdministeredAgentConfig[] memory agentConfigs)
-    {
-        address[] memory agentAdmins   = new address[](1);
-        address[] memory agentActors   = new address[](1);
-        address[] memory agentGrantors = new address[](1);
-        address[] memory agentRevokers = new address[](1);
-
-        agentAdmins[0]   = admin;
-        agentActors[0]   = relayer;
-        agentGrantors[0] = grantor;
-        agentRevokers[0] = freezer;
-
-        agentConfigs = new InitParallelPAU.AdministeredAgentConfig[](1);
-        agentConfigs[0] = InitParallelPAU.AdministeredAgentConfig({
-            agent    : administeredAgentAddr,
-            admins   : agentAdmins,
-            actors   : agentActors,
-            grantors : agentGrantors,
-            revokers : agentRevokers
-        });
     }
 
     function _assertFacetConstructors() internal view override {
@@ -230,10 +104,10 @@ contract ArbitrumParallelE2ETest is ArbitrumPostDeployTestsBase {
         controller.removeIntegrations(ids);
 
         vm.expectRevert();
-        IACLike(address(beacon)).revokeRole(DEFAULT_ADMIN_ROLE, admin);
+        beacon.revokeRole(DEFAULT_ADMIN_ROLE, admin);
 
         vm.expectRevert();
-        IACLike(address(rateLimits)).revokeRole(DEFAULT_ADMIN_ROLE, admin);
+        rateLimits.revokeRole(DEFAULT_ADMIN_ROLE, admin);
 
         vm.stopPrank();
     }
@@ -338,6 +212,128 @@ contract ArbitrumParallelE2ETest is ArbitrumPostDeployTestsBase {
         );
 
         assertEq(almProxy.hasRole(CONTROLLER_ROLE, legacyController), true);
+    }
+
+}
+
+contract ArbitrumParallelE2ETestLocal is ArbitrumParallelE2ETestsBase {
+
+    function setUp() public override {
+        super.setUp();
+
+        vm.startPrank(deployer);
+        _runDeployScript();
+        _runConfigureScript();
+        vm.stopPrank();
+    }
+
+    // Not running events tests in Local E2E tests.
+
+    function test_administeredAgentEvents() external override {}
+    function test_accessControlsEvents() external override {}
+    function test_rateLimitsEvents() external override {}
+    function test_controllerEvents() external override {}
+
+    /**********************************************************************************************/
+    /*** Script helpers                                                                         ***/
+    /**********************************************************************************************/
+
+    /// @dev Mirrors DeploySparkPAUParallelBase.run() + DeploySparkPAUParallelArbitrum._deployFacets().
+    function _runDeployScript() internal {
+        // deployer is the temporary initial admin of all four contracts;
+        // configure script hands everything over to admin and revokes deployer.
+        beacon       = new Beacon(deployer);
+        pauFactory   = new PAUFactory(address(beacon));
+        agentFactory = new AdministeredAgentFactory();
+
+        cctpFacet = address(new CCTPFacet({
+            cctp_ : cctpTokenMessenger,
+            usdc_ : usdc
+        }));
+
+        accessControls    = IAccessControls(pauFactory.deployAccessControls(deployer));
+        rateLimits        = IRateLimits(pauFactory.deployRateLimits(deployer));
+        controller        = IControllerFull(pauFactory.deployController(address(accessControls), Arbitrum.ALM_PROXY, address(rateLimits)));
+        administeredAgent = IAdministeredAgent(agentFactory.deploy(deployer));
+    }
+
+    /// @dev Mirrors ConfigureSparkPAUParallelBase.run() with ArbitrumStaging overrides.
+    function _runConfigureScript() internal {
+        // Step 1: Wire CCTP on Beacon.
+        BeaconConfig.setCCTPIntegration(address(beacon), cctpFacet);
+
+        // Step 2: Build InitParallelPAU params (mirrors _getAdminConfig + _getAgentConfigs).
+        address[] memory accessControlAdmins = new address[](1);
+        accessControlAdmins[0] = admin;
+
+        address[] memory rateLimitsAdmins = new address[](1);
+        rateLimitsAdmins[0] = admin;
+
+        InitParallelPAU.AdminConfig memory adminConfig = InitParallelPAU.AdminConfig({
+            accessControlAdmins : accessControlAdmins,
+            rateLimitsAdmins    : rateLimitsAdmins
+        });
+
+        InitParallelPAU.AdministeredAgentConfig[] memory agentConfigs =
+            _buildAgentConfigs();
+
+        bytes32[] memory integrationIds = new bytes32[](1);
+        integrationIds[0] = BeaconConfig.CCTP_INTEGRATION;
+
+        InitParallelPAU.initParallelPAU(address(controller), integrationIds, adminConfig, agentConfigs);
+
+        // Step 3: _transferAdminRoles (mirrors ConfigureSparkPAUParallelBase._transferAdminRoles).
+        beacon.grantRole(DEFAULT_ADMIN_ROLE, admin);
+
+        beacon.revokeRole(DEFAULT_ADMIN_ROLE,         deployer);
+        accessControls.revokeRole(DEFAULT_ADMIN_ROLE, deployer);
+        rateLimits.revokeRole(DEFAULT_ADMIN_ROLE,     deployer);
+
+        administeredAgent.removeAdmin(deployer);
+    }
+
+    function _buildAgentConfigs()
+        internal
+        view
+        returns (InitParallelPAU.AdministeredAgentConfig[] memory agentConfigs)
+    {
+        address[] memory agentAdmins   = new address[](1);
+        address[] memory agentActors   = new address[](1);
+        address[] memory agentGrantors = new address[](1);
+        address[] memory agentRevokers = new address[](1);
+
+        agentAdmins[0]   = admin;
+        agentActors[0]   = relayer;
+        agentGrantors[0] = grantor;
+        agentRevokers[0] = freezer;
+
+        agentConfigs = new InitParallelPAU.AdministeredAgentConfig[](1);
+        agentConfigs[0] = InitParallelPAU.AdministeredAgentConfig({
+            agent    : address(administeredAgent),
+            admins   : agentAdmins,
+            actors   : agentActors,
+            grantors : agentGrantors,
+            revokers : agentRevokers
+        });
+    }
+
+}
+
+
+contract ArbitrumParallelE2ETestLive is ArbitrumParallelE2ETestsBase {
+
+    function setUp() public override {
+        super.setUp();
+
+        beacon       = IBeacon(0x86036CE5d2f792367C0AA43164e688d13c5A60A8);
+        pauFactory   = IPAUFactory(0x3968a022D955Bbb7927cc011A48601B65a33F346);
+        agentFactory = IAdministeredAgentFactory(0xCBA0C0a2a0B6Bb11233ec4EA85C5bFfea33e724d);
+
+        cctpFacet         = 0xeCCA0D296Cb133081d41E9772B60D57F5fd2798E;
+        accessControls    = IAccessControls(0x8386f819860D54B1180539Ff4852E4CAECef8A1D);
+        rateLimits        = IRateLimits(0x4824C4336a1a11979068A544958dCe5D49B42752);
+        controller        = IControllerFull(0x04ACB9e9bbd64A425677edC535D6B30cfD74E42f);
+        administeredAgent = IAdministeredAgent(0x0745aae633E8318a063D383791bCc0d8C82F46C6);
     }
 
 }

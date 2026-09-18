@@ -80,19 +80,19 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
 
     // Deployed PAU stack
 
-    function test_administeredAgentState() external {
+    function test_administeredAgentState() external view {
         _assertAdministeredAgentState();
     }
 
-    function test_administeredAgentEvents() external {
+    function test_administeredAgentEvents() external virtual {
         _assertAdministeredAgentEvents();
     }
 
-    function test_accessControlsState() external {
+    function test_accessControlsState() external view {
         _assertAccessControlsState();
     }
 
-    function test_accessControlsEvents() external {
+    function test_accessControlsEvents() external virtual {
         _assertAccessControlsEvents();
     }
 
@@ -100,15 +100,15 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
         _assertALMProxyState_unchanged();
     }
 
-    function test_rateLimitsState() external {
+    function test_rateLimitsState() external view {
         _assertRateLimitsInitializationState();
     }
 
-    function test_rateLimitsEvents() external {
+    function test_rateLimitsEvents() external virtual {
         _assertRateLimitsEvents();
     }
 
-    function test_controllerState() external {
+    function test_controllerState() external view {
         _assertControllerInitializationState();
 
         // Exactly one integration: CCTP_FACET.
@@ -137,7 +137,7 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
         }
     }
 
-    function test_controllerEvents() external {
+    function test_controllerEvents() external virtual {
         _assertControllerEvents();
     }
 
@@ -324,7 +324,7 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
 
 }
 
-contract ArbitrumPostDeployTestsStaging is ArbitrumPostDeployTestsBase {
+contract ArbitrumPostDeployTestsProduction is ArbitrumPostDeployTestsBase {
 
     using stdJson for string;
 
