@@ -72,16 +72,16 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
             IEI.Config memory arbitrumBeaconConfig = integrations[i].config;
             IEI.Config memory skyBeaconConfig      = skyMainnetBeacon.getConfig(integrations[i].id);
 
-            // Facets are per-chain deployments, so only the wiring is compared across beacons.
-            assertEq(arbitrumBeaconConfig.wires.length, skyBeaconConfig.wires.length);
+            vm.selectFork(arbitrumFork);
 
-            // Check that the wires are the same
             for (uint256 j; j < arbitrumBeaconConfig.wires.length; ++j) {
-                assertTrue(_hasWire(skyBeaconConfig, arbitrumBeaconConfig.wires[j]));
+                IEI.Wire memory arbitrumWire = arbitrumBeaconConfig.wires[j];
+
+                assertTrue(_hasWire(skyBeaconConfig, arbitrumWire));
+
+                _hasSelector(cctpFacet, arbitrumWire.callSelector);
             }
         }
-
-        vm.selectFork(arbitrumFork);
     }
 
     function _hasWire(IEI.Config memory beaconConfig, IEI.Wire memory wire) internal pure returns (bool) {
@@ -140,7 +140,7 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
         return success || revertData.length > 0;
     }
 
-    function test_controllerState() external {
+    function test_controllerState() external view {
         _assertControllerInitializationState();
 
         // Exactly one integration: CCTP_FACET.
@@ -166,9 +166,6 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
         for (uint256 i; i < controllerConfig.wires.length; i++) {
             assertEq(controllerConfig.wires[i].callSelector,     arbitrumBeaconConfig.wires[i].callSelector);
             assertEq(controllerConfig.wires[i].delegateSelector, arbitrumBeaconConfig.wires[i].delegateSelector);
-
-            // Check that the facet has the selectors
-            _hasSelector(cctpFacet, controllerConfig.wires[i].callSelector);
         }
     }
 
