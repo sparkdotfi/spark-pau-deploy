@@ -447,7 +447,7 @@ contract MainnetPostDeployTestsStaging is MainnetPostDeployTestsBase {
         ERC4626_USDC_MAX_AMOUNT = 10e6;
         ERC4626_USDC_SLOPE      = uint256(100e6) / 1 hours;
 
-        _setUpAddresses(vm.readFile("deployments/mainnet-staging.json"));
+        _setUpAddresses(vm.readFile("deployments/full-pau/mainnet-staging.json"));
     }
 
     function _getBlock() internal override pure returns (uint256) {
@@ -551,7 +551,7 @@ contract MainnetPostDeployTestsProduction is MainnetPostDeployTestsBase {
         ERC4626_USDC_MAX_AMOUNT = type(uint256).max;
         ERC4626_USDC_SLOPE      = 0;
 
-        _setUpAddresses(vm.readFile("deployments/mainnet-production.json"));
+        _setUpAddresses(vm.readFile("deployments/full-pau/mainnet-production.json"));
     }
 
     function _getBlock() internal override pure returns (uint256) {

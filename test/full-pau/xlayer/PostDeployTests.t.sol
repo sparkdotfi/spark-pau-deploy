@@ -137,7 +137,7 @@ contract XLayerPostDeployTestsStaging is XLayerPostDeployTestsBase {
     function setUp() public override {
         super.setUp();
 
-        string memory json = vm.readFile("deployments/xlayer-staging.json");
+        string memory json = vm.readFile("deployments/full-pau/xlayer-staging.json");
 
         // CCTP facet onboarding.
         ETHEREUM_CCTP_MINT_RECIPIENT = 0x5A7e6fF9A4836275b469C7413fA40294661A2017;
@@ -193,7 +193,7 @@ contract XLayerPostDeployTestsProduction is XLayerPostDeployTestsBase {
     function setUp() public override {
         super.setUp();
 
-        string memory json = vm.readFile("deployments/xlayer-production.json");
+        string memory json = vm.readFile("deployments/full-pau/xlayer-production.json");
 
         // CCTP facet onboarding.
         ETHEREUM_CCTP_MINT_RECIPIENT = 0x8D719A830b00e5571db00D173505CD56c0Ec224a;

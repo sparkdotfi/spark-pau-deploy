@@ -107,8 +107,8 @@ contract CrossChainE2ETestStaging is CrossChainE2ETestBase {
     function setUp() public override {
         super.setUp();
 
-        string memory mainnetJson = vm.readFile("deployments/mainnet-staging.json");
-        string memory xlayerJson  = vm.readFile("deployments/xlayer-staging.json");
+        string memory mainnetJson = vm.readFile("deployments/full-pau/mainnet-staging.json");
+        string memory xlayerJson  = vm.readFile("deployments/full-pau/xlayer-staging.json");
 
         DEPOSIT_AMOUNT                    = 5e6;
         TAKE_RATE_LIMIT_MAX_AMOUNT        = 10e6;
@@ -298,8 +298,8 @@ contract CrossChainE2ETestProduction is CrossChainE2ETestBase {
     function setUp() public override {
         super.setUp();
 
-        string memory mainnetJson = vm.readFile("deployments/mainnet-production.json");
-        string memory xlayerJson  = vm.readFile("deployments/xlayer-production.json");
+        string memory mainnetJson = vm.readFile("deployments/full-pau/mainnet-production.json");
+        string memory xlayerJson  = vm.readFile("deployments/full-pau/xlayer-production.json");
 
         CCTP_MESSAGE_TRANSMITTER = CCTPv2Forwarder.MESSAGE_TRANSMITTER_CIRCLE_ETHEREUM;
 
