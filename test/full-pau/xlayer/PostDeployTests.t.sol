@@ -7,7 +7,7 @@ import { XLayer } from "../../../lib/spark-address-registry/src/XLayer.sol";
 
 import { IEnumerableIntegrations as IEI } from "../../../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
 
-import { PostDeployTestBase } from "../../PostDeployTestBase.t.sol";
+import { PostDeployTestBaseFull } from "../PostDeployTestBaseFull.t.sol";
 
 interface ISparkVaultLike {
 
@@ -17,7 +17,7 @@ interface ISparkVaultLike {
 
 }
 
-abstract contract XLayerPostDeployTestsBase is PostDeployTestBase {
+abstract contract XLayerPostDeployTestsBase is PostDeployTestBaseFull {
 
     bytes32 internal constant CCTP_FACET_ID           = "CCTP_FACET";
     bytes32 internal constant TRANSFER_ASSET_FACET_ID = "TRANSFER_ASSET_FACET";

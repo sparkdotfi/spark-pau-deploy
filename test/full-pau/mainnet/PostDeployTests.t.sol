@@ -13,7 +13,7 @@ import { IAdministeredAgent } from "../../../lib/pau-administered-agent/src/inte
 
 import { Ethereum } from "../../../lib/spark-address-registry/src/Ethereum.sol";
 
-import { PostDeployTestBase } from "../../PostDeployTestBase.t.sol";
+import { PostDeployTestBaseFull } from "../PostDeployTestBaseFull.t.sol";
 
 interface IERC4626Like {
 
@@ -21,7 +21,7 @@ interface IERC4626Like {
 
 }
 
-abstract contract MainnetPostDeployTestsBase is PostDeployTestBase {
+abstract contract MainnetPostDeployTestsBase is PostDeployTestBaseFull {
 
     bytes32 internal constant CCTP_FACET_ID    = "CCTP_FACET";
     bytes32 internal constant ERC4626_FACET_ID = "ERC4626_FACET";

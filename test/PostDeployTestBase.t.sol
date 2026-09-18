@@ -21,14 +21,6 @@ import { IERC4626Facet } from "../lib/diamond-pau/src/facets/erc4626/IERC4626Fac
 import { IAdministeredAgent }        from "../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
 import { IAdministeredAgentFactory } from "../lib/pau-administered-agent/src/interfaces/IAdministeredAgentFactory.sol";
 
-interface IDefaultPAUAssemblerLike {
-
-    function pauFactory() external view returns (address);
-
-    function administeredAgentFactory() external view returns (address);
-
-}
-
 abstract contract PostDeployTestBase is Test {
 
     using stdJson for string;
@@ -37,7 +29,6 @@ abstract contract PostDeployTestBase is Test {
     bytes32 internal constant ALLOCATOR_ROLE     = keccak256("ALLOCATOR_ROLE");
     bytes32 internal constant CONTROLLER_ROLE    = keccak256("CONTROLLER");
 
-    IDefaultPAUAssemblerLike  internal assembler;
     IAdministeredAgentFactory internal agentFactory;
     IBeacon                   internal beacon;
     IPAUFactory               internal pauFactory;
@@ -58,9 +49,8 @@ abstract contract PostDeployTestBase is Test {
         _setUpXLayerAndRobinhoodForks();
     }
 
-    function _setUpAddresses(string memory json) internal {
+    function _setUpAddresses(string memory json) internal virtual {
         agentFactory = IAdministeredAgentFactory(json.readAddress(".agentFactory"));
-        assembler    = IDefaultPAUAssemblerLike(json.readAddress(".defaultPAUAssembler"));
         beacon       = IBeacon(json.readAddress(".beacon"));
         pauFactory   = IPAUFactory(json.readAddress(".pauFactory"));
 
@@ -94,69 +84,6 @@ abstract contract PostDeployTestBase is Test {
     /**********************************************************************************************/
     /*** State Assertions                                                                       ***/
     /**********************************************************************************************/
-
-    function _assertAdministeredAgentState() internal virtual view {
-        assertEq(administeredAgent.adminCount(),   1);
-        assertEq(administeredAgent.actorCount(),   1);
-        assertEq(administeredAgent.grantorCount(), 1);
-        assertEq(administeredAgent.revokerCount(), 1);
-
-        assertEq(administeredAgent.getAdmin(0),   admin);
-        assertEq(administeredAgent.getActor(0),   relayer);
-        assertEq(administeredAgent.getGrantor(0), grantor);
-        assertEq(administeredAgent.getRevoker(0), freezer);
-
-        assertEq(administeredAgent.getIsAdmin(deployer),              false);
-        assertEq(administeredAgent.getIsAdmin(address(assembler)),    false);
-        assertEq(administeredAgent.getIsAdmin(address(agentFactory)), false);
-    }
-
-    function _assertAccessControlsState() internal view {
-        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, admin),     true);
-        assertEq(accessControls.getRoleMemberCount(DEFAULT_ADMIN_ROLE), 1);
-
-        assertEq(accessControls.hasRole(ALLOCATOR_ROLE, address(administeredAgent)), true);
-        assertEq(accessControls.getRoleMemberCount(ALLOCATOR_ROLE),                  1);
-
-        // Neither the deployer nor the deploy infrastructure retains any role.
-
-        assertEq(accessControls.hasRole(ALLOCATOR_ROLE,     deployer), false);
-        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, deployer), false);
-
-        assertEq(accessControls.hasRole(ALLOCATOR_ROLE,     address(assembler)), false);
-        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, address(assembler)), false);
-
-        assertEq(accessControls.hasRole(ALLOCATOR_ROLE,     address(pauFactory)), false);
-        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, address(pauFactory)), false);
-    }
-
-    function _assertALMProxyState() internal view {
-        assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, admin),               true);
-        assertEq(almProxy.hasRole(CONTROLLER_ROLE,    address(controller)), true);
-
-        assertEq(almProxy.hasRole(CONTROLLER_ROLE,    deployer), false);
-        assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, deployer), false);
-
-        assertEq(almProxy.hasRole(CONTROLLER_ROLE,    address(assembler)), false);
-        assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, address(assembler)), false);
-
-        assertEq(almProxy.hasRole(CONTROLLER_ROLE,    address(pauFactory)), false);
-        assertEq(almProxy.hasRole(DEFAULT_ADMIN_ROLE, address(pauFactory)), false);
-    }
-
-    function _assertRateLimitsInitializationState() internal view {
-        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, admin),               true);
-        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    address(controller)), true);
-
-        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    deployer), false);
-        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, deployer), false);
-
-        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    address(assembler)), false);
-        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, address(assembler)), false);
-
-        assertEq(rateLimits.hasRole(CONTROLLER_ROLE,    address(pauFactory)), false);
-        assertEq(rateLimits.hasRole(DEFAULT_ADMIN_ROLE, address(pauFactory)), false);
-    }
 
     function _assertControllerInitializationState() internal view {
         assertEq(controller.accessControls(), address(accessControls));
@@ -437,36 +364,6 @@ abstract contract PostDeployTestBase is Test {
         assertEq(log.topics[0],             IAdministeredAgent.RevokerRemoved.selector);
         assertEq(_toAddress(log.topics[1]), account);
         assertEq(_toAddress(log.topics[2]), caller);
-    }
-
-    // Facet onboarding event helpers
-
-    function _assertCCTPDomainParametersSetEvent(
-        VmSafe.EthGetLogs memory log,
-        uint32                   destinationDomain,
-        address                  mintRecipient,
-        uint32                   minFeeCapRate,
-        uint32                   maxFeeCapRate
-    ) internal pure {
-        ( uint32 loggedMinFeeCapRate, uint32 loggedMaxFeeCapRate ) = abi.decode(log.data, (uint32, uint32));
-
-        assertEq(log.topics[0],          ICCTPFacet.CCTPDomainParametersSet.selector);
-        assertEq(uint256(log.topics[1]), uint256(destinationDomain));
-        assertEq(log.topics[2],          bytes32(uint256(uint160(mintRecipient))));
-
-        assertEq(loggedMinFeeCapRate, minFeeCapRate);
-        assertEq(loggedMaxFeeCapRate, maxFeeCapRate);
-    }
-
-    function _assertERC4626MaxExchangeRateSetEvent(
-        VmSafe.EthGetLogs memory log,
-        address                  token,
-        uint256                  maxExchangeRate
-    ) internal pure {
-        assertEq(log.topics[0],             IERC4626Facet.ERC4626MaxExchangeRateSet.selector);
-        assertEq(_toAddress(log.topics[1]), token);
-
-        assertEq(abi.decode(log.data, (uint256)), maxExchangeRate);
     }
 
 }
