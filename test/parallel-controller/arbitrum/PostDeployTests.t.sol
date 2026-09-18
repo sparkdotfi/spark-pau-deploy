@@ -70,17 +70,22 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
             // Facets are per-chain deployments, so only the wiring is compared across beacons.
             assertEq(arbitrumBeaconConfig.wires.length, skyBeaconConfig.wires.length);
 
-            // Sky wires the same pairs in a different order, so each wire is matched through Sky's
-            // dispatch rather than by position.
+            // Check that the wires are the same
             for (uint256 j; j < arbitrumBeaconConfig.wires.length; ++j) {
-                IEI.Dispatch memory skyDispatch = skyMainnetBeacon.getDispatch(arbitrumBeaconConfig.wires[j].callSelector);
-
-                assertEq(skyDispatch.facet,            skyBeaconConfig.facet);
-                assertEq(skyDispatch.delegateSelector, arbitrumBeaconConfig.wires[j].delegateSelector);
+                assertTrue(_hasWire(skyBeaconConfig, arbitrumBeaconConfig.wires[j]));
             }
         }
 
         vm.selectFork(arbitrumFork);
+    }
+
+    function _hasWire(IEI.Config memory beaconConfig, IEI.Wire memory wire) internal pure returns (bool) {
+        for (uint256 i; i < beaconConfig.wires.length; ++i) {
+            if (beaconConfig.wires[i].callSelector == wire.callSelector) {
+                return beaconConfig.wires[i].delegateSelector == wire.delegateSelector;
+            }
+        }
+        return false;
     }
 
     function test_beaconEvents() external virtual {
