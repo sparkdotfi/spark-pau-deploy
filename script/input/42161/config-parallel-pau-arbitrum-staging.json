@@ -1,0 +1,15 @@
+{
+    "_info": "Spark Arbitrum Staging Parallel PAU configuration.",
+  
+    "chainId": 42161,
+    "admin": "0x62B5262D3639eA5A8ec0D8Aa442f1135ecF77205",
+    "deployer": "0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f",
+    "beacon": "",
+    "administeredAgent": "",
+    "pauController": "",
+    "relayer": "0x19C6728873c6d247582A8b39fF410B42C4AE5a3F",
+    "grantor": "",
+    "freezer": "0x19C6728873c6d247582A8b39fF410B42C4AE5a3F",
+
+    "cctpFacet": ""
+}
