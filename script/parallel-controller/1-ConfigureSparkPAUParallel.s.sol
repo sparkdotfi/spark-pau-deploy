@@ -185,7 +185,7 @@ abstract contract ConfigureSparkPAUParallelBase is Script {
 
 }
 
-contract ConfigureSparkPAUParallelArbitrumStaging is ConfigureSparkPAUParallelBase {
+contract ConfigureSparkPAUParallelArbitrum is ConfigureSparkPAUParallelBase {
 
     using stdJson for string;
 
