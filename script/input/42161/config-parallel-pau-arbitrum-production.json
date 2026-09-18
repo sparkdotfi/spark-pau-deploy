@@ -1,0 +1,15 @@
+{
+    "_info": "Spark Arbitrum Production Parallel PAU configuration.",
+  
+    "chainId": 42161,
+    "admin": "0x65d946e533748A998B1f0E430803e39A6388f7a1",
+    "deployer": "0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f",
+    "beacon": "0x86036CE5d2f792367C0AA43164e688d13c5A60A8",
+    "administeredAgent": "0x0745aae633E8318a063D383791bCc0d8C82F46C6",
+    "pauController": "0x04ACB9e9bbd64A425677edC535D6B30cfD74E42f",
+    "relayer": "0x8a25A24EDE9482C4Fc0738F99611BE58F1c839AB",
+    "grantor": "0x4B61A0E48dd1e300f64090C60F414c1aC6CbC514",
+    "freezer": "0x90D8c80C028B4C09C0d8dcAab9bbB057F0513431",
+
+    "cctpFacet": "0xeCCA0D296Cb133081d41E9772B60D57F5fd2798E"
+}
