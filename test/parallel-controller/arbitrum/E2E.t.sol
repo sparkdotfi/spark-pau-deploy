@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.34;
 
-import { IERC20 } from "../../../lib/diamond-pau/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IAccessControl } from "../../../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
+import { IERC20 }         from "../../../lib/diamond-pau/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 import { IAccessControls }                           from "../../../lib/diamond-pau/src/interfaces/IAccessControls.sol";
 import { IALMProxy }                                 from "../../../lib/diamond-pau/src/interfaces/IALMProxy.sol";
 import { IBeacon }                                   from "../../../lib/diamond-pau/src/interfaces/IBeacon.sol";
+import { IController }                               from "../../../lib/diamond-pau/src/interfaces/IController.sol";
 import { IPAUFactory }                               from "../../../lib/diamond-pau/src/interfaces/IPAUFactory.sol";
 import { IRateLimits }                               from "../../../lib/diamond-pau/src/interfaces/IRateLimits.sol";
 import { IMainnetControllerFull as IControllerFull } from "../../../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
@@ -24,10 +26,21 @@ import { Ethereum } from "../../../lib/spark-address-registry/src/Ethereum.sol";
 
 import { Ethereum as SkyEthereum } from "../../../lib/sky-pau-registry/src/Ethereum.sol";
 
+import { Bridge, BridgeType }    from "../../../lib/diamond-pau/lib/grove-xchain-helpers/src/testing/Bridge.sol";
+import { CCTPv2BridgeTesting }   from "../../../lib/diamond-pau/lib/grove-xchain-helpers/src/testing/bridges/CCTPv2BridgeTesting.sol";
+import { CCTPv2Forwarder }       from "../../../lib/diamond-pau/lib/grove-xchain-helpers/src/forwarders/CCTPv2Forwarder.sol";
+import { Domain, DomainHelpers } from "../../../lib/diamond-pau/lib/grove-xchain-helpers/src/testing/Domain.sol";
+
 import { BeaconConfig }    from "../../../src/BeaconConfig.sol";
 import { InitParallelPAU } from "../../../src/InitParallelPAU.sol";
 
 import { ArbitrumPostDeployTestsBase } from "./PostDeployTests.t.sol";
+
+interface ILegacyController {
+
+    function transferUSDCToCCTP(uint256 usdcAmount, uint32 destinationDomain) external;
+
+}
 
 /**
  * @notice Runs the exact production code path (the two parallel-controller scripts) on an
@@ -43,7 +56,19 @@ import { ArbitrumPostDeployTestsBase } from "./PostDeployTests.t.sol";
  */
 abstract contract ArbitrumParallelE2ETestsBase is ArbitrumPostDeployTestsBase {
 
+    using DomainHelpers       for *;
+    using CCTPv2BridgeTesting for Bridge;
+
     address internal constant DEPLOYER = 0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f;
+
+    address internal CCTP_MESSAGE_TRANSMITTER = CCTPv2Forwarder.MESSAGE_TRANSMITTER_CIRCLE_ETHEREUM;
+
+    uint32 internal ETHEREUM_CCTP_DOMAIN = CCTPv2Forwarder.DOMAIN_ID_CIRCLE_ETHEREUM;
+    uint32 internal ARBITRUM_CCTP_DOMAIN = 3;
+
+    Bridge internal bridge;
+    Domain internal mainnet;
+    Domain internal arbitrum;
 
     address internal ethereumAlmProxy;
     uint32  internal ethereumDomainId;
@@ -64,6 +89,22 @@ abstract contract ArbitrumParallelE2ETestsBase is ArbitrumPostDeployTestsBase {
         usdc               = Arbitrum.USDC;
         ethereumAlmProxy   = Ethereum.ALM_PROXY;
         ethereumDomainId   = 0;
+
+        mainnet  = getChain("mainnet").createSelectFork(26005798); // September 18, 2026
+        arbitrum = getChain("arbitrum_one").createSelectFork(70982550);  // September 18, 2026
+
+        bridge = CCTPv2BridgeTesting.init(Bridge({
+            bridgeType                     : BridgeType.CCTP_V2,
+            source                         : arbitrum,
+            destination                    : mainnet,
+            sourceCrossChainMessenger      : CCTP_MESSAGE_TRANSMITTER,
+            destinationCrossChainMessenger : CCTP_MESSAGE_TRANSMITTER,
+            lastSourceLogIndex             : 0,
+            lastDestinationLogIndex        : 0,
+            extraData                      : ""
+        }));
+
+        arbitrum.selectFork();
     }
 
     function _assertFacetConstructors() internal view override {
@@ -89,26 +130,43 @@ abstract contract ArbitrumParallelE2ETestsBase is ArbitrumPostDeployTestsBase {
     /// @dev Only the AdministeredAgent holds ALLOCATOR_ROLE. A relayer calling the controller
     ///      directly is rejected by the onlyRole guard.
     function test_relayerCannotCallControllerDirectly() external {
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, relayer, ALLOCATOR_ROLE));
         vm.prank(relayer);
         controller.cctp_transfer(1e6, ethereumDomainId, 0);
     }
 
     /// @dev The deployer retains no authority anywhere after configure.
     function test_deployerCannotAdministerAfterConfigure() external {
-        bytes32[] memory ids = new bytes32[](1);
-        ids[0] = BeaconConfig.CCTP_INTEGRATION;
+        address someAccount = makeAddr("someAccount");
 
         vm.startPrank(deployer);
 
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, deployer, DEFAULT_ADMIN_ROLE));
+        beacon.revokeRole(DEFAULT_ADMIN_ROLE, someAccount);
+
+        vm.expectRevert(abi.encodeWithSelector(IAdministeredAgent.NotAdmin.selector));
+        administeredAgent.removeAdmin(someAccount);
+
+        vm.expectRevert(abi.encodeWithSelector(IAdministeredAgent.NotGrantor.selector));
+        administeredAgent.addActor(someAccount);
+
+        vm.expectRevert(abi.encodeWithSelector(IAdministeredAgent.NotRevoker.selector));
+        administeredAgent.removeActor(someAccount);
+
+        vm.expectRevert(abi.encodeWithSelector(IAdministeredAgent.NotActor.selector));
+        administeredAgent.call(someAccount, "");
+
+        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, deployer, DEFAULT_ADMIN_ROLE));
+        accessControls.revokeRole(DEFAULT_ADMIN_ROLE, someAccount);
+
+        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, deployer, DEFAULT_ADMIN_ROLE));
+        rateLimits.revokeRole(DEFAULT_ADMIN_ROLE, someAccount);
+
+        bytes32[] memory ids = new bytes32[](1);
+        ids[0] = BeaconConfig.CCTP_INTEGRATION;
+
+        vm.expectRevert(abi.encodeWithSelector(IController.NotAdmin.selector, deployer));
         controller.removeIntegrations(ids);
-
-        vm.expectRevert();
-        beacon.revokeRole(DEFAULT_ADMIN_ROLE, admin);
-
-        vm.expectRevert();
-        rateLimits.revokeRole(DEFAULT_ADMIN_ROLE, admin);
 
         vm.stopPrank();
     }
@@ -117,10 +175,8 @@ abstract contract ArbitrumParallelE2ETestsBase is ArbitrumPostDeployTestsBase {
     /*** Simulated spell + live CCTP V2 burn                                                    ***/
     /**********************************************************************************************/
 
-    /// @dev The spell grants CONTROLLER on the existing ALMProxy and sets the two CCTP rate
-    ///      limits. After that a relayer can bridge USDC to the Spark Ethereum ALMProxy through
-    ///      Circle's TokenMessengerV2, and the legacy controller is unaffected.
-    function test_spellThenCCTPTransfer() external {
+    /// @dev The spell grants CONTROLLER on the existing ALMProxy and sets the two CCTP rate limits.
+    function _runSpell() internal {
         uint256 maxAmount = 10_000_000e6;
         uint256 slope     = uint256(50_000_000e6) / 1 days;
 
@@ -147,9 +203,22 @@ abstract contract ArbitrumParallelE2ETestsBase is ArbitrumPostDeployTestsBase {
         rateLimits.setRateLimitData(domainKey, maxAmount, slope);
 
         vm.stopPrank();
+    }
+
+    /// @dev The spell grants CONTROLLER on the existing ALMProxy and sets the two CCTP rate
+    ///      limits. After that a relayer can bridge USDC to the Spark Ethereum ALMProxy through
+    ///      Circle's TokenMessengerV2, and the legacy controller is unaffected.
+    function test_spellThenCCTPTransfer() external {
+        _runSpell();
 
         assertEq(almProxy.hasRole(CONTROLLER_ROLE, legacyController),    true);
         assertEq(almProxy.hasRole(CONTROLLER_ROLE, address(controller)), true);
+
+        bytes32 totalKey  = controller.cctp_toCCTPRateLimitKey();
+        bytes32 domainKey = controller.cctp_getToDomainRateLimitKey(ethereumDomainId);
+
+        uint256 startingTotalAmount  = rateLimits.getCurrentRateLimit(totalKey);
+        uint256 startingDomainAmount = rateLimits.getCurrentRateLimit(domainKey);
 
         // --- Fund the proxy with idle USDC ---
 
@@ -170,19 +239,34 @@ abstract contract ArbitrumParallelE2ETestsBase is ArbitrumPostDeployTestsBase {
         // USDC burned from the proxy, no leftover allowance, both limits consumed.
         assertEq(IERC20(usdc).balanceOf(address(almProxy)),                      0);
         assertEq(IERC20(usdc).allowance(address(almProxy), cctpTokenMessenger),  0);
-        assertEq(IERC20(usdc).totalSupply(),                                      usdcSupplyBefore - amount);
+        assertEq(IERC20(usdc).totalSupply(),                                     usdcSupplyBefore - amount);
 
-        assertEq(rateLimits.getCurrentRateLimit(totalKey),  maxAmount - amount);
-        assertEq(rateLimits.getCurrentRateLimit(domainKey), maxAmount - amount);
+        assertEq(rateLimits.getCurrentRateLimit(totalKey),  startingTotalAmount - amount);
+        assertEq(rateLimits.getCurrentRateLimit(domainKey), startingDomainAmount - amount);
+
+        // --- Relay the message to Ethereum ---
+
+        mainnet.selectFork();
+
+        uint256 mainnetUsdcSupply = IERC20(Ethereum.USDC).totalSupply();
+
+        assertEq(IERC20(Ethereum.USDC).balanceOf(ethereumAlmProxy), 0);
+
+        bridge.relayMessagesToDestination(true);
+
+        assertEq(IERC20(Ethereum.USDC).balanceOf(ethereumAlmProxy), amount);
+        assertEq(IERC20(Ethereum.USDC).totalSupply(),               mainnetUsdcSupply + amount);
+
+        arbitrum.selectFork();
 
         // Over the remaining limit fails closed.
-        deal(usdc, address(almProxy), maxAmount);
+        deal(usdc, address(almProxy), startingTotalAmount);
 
         vm.expectRevert("RateLimits/rate-limit-exceeded");
         vm.prank(relayer);
         administeredAgent.call(
             address(controller),
-            abi.encodeCall(controller.cctp_transfer, (maxAmount, ethereumDomainId, 0))
+            abi.encodeCall(controller.cctp_transfer, (startingTotalAmount, ethereumDomainId, 0))
         );
 
         // An unconfigured destination domain fails before hitting the proxy.
@@ -197,6 +281,16 @@ abstract contract ArbitrumParallelE2ETestsBase is ArbitrumPostDeployTestsBase {
     /// @dev Kill switch: one admin transaction makes the CCTP facet unreachable; legacy
     ///      controller is untouched.
     function test_removeIntegrationIsKillSwitch() external {
+        _runSpell();
+
+        // Can call cctp_transfer on pau controller
+        vm.prank(relayer);
+        administeredAgent.call(
+            address(controller),
+            abi.encodeCall(controller.cctp_transfer, (1e6, ethereumDomainId, 0))
+        );
+
+        // Remove cctp integration
         bytes32[] memory ids = new bytes32[](1);
         ids[0] = BeaconConfig.CCTP_INTEGRATION;
 
@@ -205,14 +299,17 @@ abstract contract ArbitrumParallelE2ETestsBase is ArbitrumPostDeployTestsBase {
 
         assertEq(controller.integrations().length, 0);
 
-        vm.expectRevert();
+        // Cannot call cctp_transfer on pau controller
+        vm.expectRevert(abi.encodeWithSelector(IController.CallSelectorNotWired.selector, controller.cctp_transfer.selector));
         vm.prank(relayer);
         administeredAgent.call(
             address(controller),
             abi.encodeCall(controller.cctp_transfer, (1e6, ethereumDomainId, 0))
         );
 
-        assertEq(almProxy.hasRole(CONTROLLER_ROLE, legacyController), true);
+        // Can still call cctp_transfer on legacy controller
+        vm.prank(relayer);
+        ILegacyController(legacyController).transferUSDCToCCTP(1e6, ethereumDomainId);
     }
 
 }
@@ -234,11 +331,25 @@ contract ArbitrumParallelE2ETestLocal is ArbitrumParallelE2ETestsBase {
 
     // Not running events tests in Local E2E tests.
 
-    function test_beaconEvents() external override {}
-    function test_administeredAgentEvents() external override {}
-    function test_accessControlsEvents() external override {}
-    function test_rateLimitsEvents() external override {}
-    function test_controllerEvents() external override {}
+    function test_beaconEvents() external override {
+        vm.skip(true);
+    }
+
+    function test_administeredAgentEvents() external override {
+        vm.skip(true);
+    }
+
+    function test_accessControlsEvents() external override {
+        vm.skip(true);
+    }
+
+    function test_rateLimitsEvents() external override {
+        vm.skip(true);
+    }
+
+    function test_controllerEvents() external override {
+        vm.skip(true);
+    }
 
     /**********************************************************************************************/
     /*** Script helpers                                                                         ***/

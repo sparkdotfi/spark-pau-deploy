@@ -15,6 +15,11 @@ import { PostDeployTestBaseParallel } from "../PostDeployTestBaseParallel.t.sol"
 
 abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
 
+     // ControllerSharedStorage.SHARED_CONTROLLER_STORAGE_LOCATION, where `accessControls` is the
+    // first field. Used by _hasSelector.
+    bytes32 internal constant SHARED_CONTROLLER_STORAGE_LOCATION =
+        0x77adf60bdbfedf206f8b8310f3d364080b7f61dcc0e46caac13c29bb1eb5cc00;
+
     // CCTP_FACET configuration
     bytes32 internal constant CCTP_FACET_ID = BeaconConfig.CCTP_INTEGRATION;
 
@@ -122,7 +127,20 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
         _assertRateLimitsEvents();
     }
 
-    function test_controllerState() external view {
+    function _hasSelector(address facet, bytes4 selector) internal returns (bool) {
+        assertGt(facet.code.length, 0, "facet has no code");
+
+        vm.store(facet, SHARED_CONTROLLER_STORAGE_LOCATION, bytes32(uint256(uint160(address(accessControls)))));
+
+        // Pad so the ABI decoder does not empty-revert on missing arguments.
+        bytes memory payload = abi.encodePacked(selector, new bytes(1024));
+
+        ( bool success, bytes memory revertData ) = facet.call(payload);
+
+        return success || revertData.length > 0;
+    }
+
+    function test_controllerState() external {
         _assertControllerInitializationState();
 
         // Exactly one integration: CCTP_FACET.
@@ -148,6 +166,9 @@ abstract contract ArbitrumPostDeployTestsBase is PostDeployTestBaseParallel {
         for (uint256 i; i < controllerConfig.wires.length; i++) {
             assertEq(controllerConfig.wires[i].callSelector,     arbitrumBeaconConfig.wires[i].callSelector);
             assertEq(controllerConfig.wires[i].delegateSelector, arbitrumBeaconConfig.wires[i].delegateSelector);
+
+            // Check that the facet has the selectors
+            _hasSelector(cctpFacet, controllerConfig.wires[i].callSelector);
         }
     }
 
