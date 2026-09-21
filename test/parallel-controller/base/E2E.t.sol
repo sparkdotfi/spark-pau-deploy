@@ -444,19 +444,19 @@ contract BaseParallelE2ETestLive is BaseParallelE2ETestsBase {
     function setUp() public override {
         super.setUp();
 
-        // beacon       = IBeacon(Base.SPARK_BEACON);
-        // pauFactory   = IPAUFactory(Base.SPARK_PAU_FACTORY);
-        // agentFactory = IAdministeredAgentFactory(Base.SPARK_ADMINISTERED_AGENT_FACTORY);
+        beacon       = IBeacon(Base.SPARK_BEACON);
+        pauFactory   = IPAUFactory(Base.SPARK_PAU_FACTORY);
+        agentFactory = IAdministeredAgentFactory(Base.SPARK_ADMINISTERED_AGENT_FACTORY);
 
-        // cctpFacet         = Base.CCTP_FACET;
-        // accessControls    = IAccessControls(Base.PAU_ACCESS_CONTROLS);
-        // rateLimits        = IRateLimits(Base.PAU_RATELIMITS);
-        // controller        = IControllerFull(Base.PAU_CONTROLLER);
-        // administeredAgent = IAdministeredAgent(Base.PAU_ADMINISTERED_AGENT);
+        cctpFacet         = Base.CCTP_FACET;
+        accessControls    = IAccessControls(Base.PAU_ACCESS_CONTROLS);
+        rateLimits        = IRateLimits(Base.PAU_RATELIMITS);
+        controller        = IControllerFull(Base.PAU_CONTROLLER);
+        administeredAgent = IAdministeredAgent(Base.PAU_ADMINISTERED_AGENT);
     }
 
     function _getBlock() internal override pure returns (uint256) {
-        return 51595732;
+        return 51607100;
     }
 
 }

@@ -373,7 +373,7 @@ contract BasePostDeployTestsProduction is BasePostDeployTestsBase {
     }
 
     function _getBlock() internal override pure returns (uint256) {
-        return 506472875;
+        return 51607100;
     }
 
     function _assertFacetConstructors() internal view override {
