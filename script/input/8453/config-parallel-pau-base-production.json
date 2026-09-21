@@ -4,12 +4,12 @@
     "chainId": 8453,
     "admin": "0xF93B7122450A50AF3e5A76E1d546e95Ac1d0F579",
     "deployer": "0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f",
-    "beacon": "",
-    "administeredAgent": "",
-    "pauController": "",
+    "beacon": "0x7ac96180C4d6b2A328D3a19ac059D0E7Fc3C6d41",
+    "administeredAgent": "0x70E46bAf2E3F27a119757D7b796c641C8bc087cE",
+    "pauController": "0xd864bF1Ea2f78Dc2013E3FC7e4C474383BE9d456",
     "relayer": "0x8a25A24EDE9482C4Fc0738F99611BE58F1c839AB",
     "grantor": "0x4B61A0E48dd1e300f64090C60F414c1aC6CbC514",
     "freezer": "0x90D8c80C028B4C09C0d8dcAab9bbB057F0513431",
 
-    "cctpFacet": ""
+    "cctpFacet": "0xb22d50c393c6E1D13E3e05B172448dD8BF8DdC32"
 }
