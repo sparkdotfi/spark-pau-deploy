@@ -1,0 +1,11 @@
+{
+    "_info": "Spark Base Production Parallel PAU deployment.",
+
+    "chainId": 8453,
+    "deployer": "0xC758519Ace14E884fdbA9ccE25F2DbE81b7e136f",
+    "almProxy": "0x2917956eFF0B5eaF030abDB4EF4296DF775009cA",
+
+    "_cctpFacet": "Values to deploy the CCTP facet.",
+    "cctpTokenMessenger": "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
+    "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+  }

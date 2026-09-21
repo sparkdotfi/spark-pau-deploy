@@ -37,7 +37,7 @@ abstract contract DeploySparkPAUParallelBase is Script {
         vm.setEnv("FOUNDRY_ROOT_CHAINID", vm.toString(block.chainid));
 
         string memory env = vm.envString("ENV");
-        
+
         fileSlug = string(abi.encodePacked("deploy-parallel-pau-", chain, "-", env));
         config   = ScriptTools.loadConfig(fileSlug);
 
@@ -86,6 +86,23 @@ abstract contract DeploySparkPAUParallelBase is Script {
 }
 
 contract DeploySparkPAUParallelArbitrum is DeploySparkPAUParallelBase {
+
+    using stdJson for string;
+
+    function _deployFacets() internal override {
+        // Deploy CCTP facet.
+
+        address cctpFacet = address(new CCTPFacet({
+            cctp_ : config.readAddress(".cctpTokenMessenger"),
+            usdc_ : config.readAddress(".usdc")
+        }));
+
+        ScriptTools.exportContract(fileSlug, "cctpFacet", cctpFacet);
+    }
+
+}
+
+contract DeploySparkPAUParallelBaseChain is DeploySparkPAUParallelBase {
 
     using stdJson for string;
 

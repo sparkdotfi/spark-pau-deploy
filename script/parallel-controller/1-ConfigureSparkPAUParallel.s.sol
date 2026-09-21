@@ -203,3 +203,19 @@ contract ConfigureSparkPAUParallelArbitrum is ConfigureSparkPAUParallelBase {
     }
 
 }
+
+contract ConfigureSparkPAUParallelBaseChain is ConfigureSparkPAUParallelBase {
+
+    using stdJson for string;
+
+    function _wireFacetsOnBeacon() internal override {
+        BeaconConfig.setCCTPIntegration(address(beacon), config.readAddress(".cctpFacet"));
+    }
+
+    function _getControllerIntegrationIds() internal override returns (bytes32[] memory integrationIds) {
+        integrationIds = new bytes32[](1);
+
+        integrationIds[0] = BeaconConfig.CCTP_INTEGRATION;
+    }
+
+}
